@@ -20,6 +20,7 @@ export default function Home() {
   const [searchMode, setSearchMode] = useState<SearchMode>("hybrid");
   const [vectorWeight, setVectorWeight] = useState(0.7);
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchSources();
@@ -88,208 +89,250 @@ export default function Home() {
   };
 
   return (
-    <div>
-      <div className="mb-4">
-        <h1 className="h2 mb-1">Busca Semântica</h1>
-        <p className="text-muted mb-0">Encontre conteúdo similar usando busca vetorial</p>
-      </div>
+    <div className="d-flex flex-column" style={{ minHeight: "80vh" }}>
+      {/* Logo e Campo de Busca - Estilo Google */}
+      <div className={`d-flex flex-column align-items-center ${searched ? "mt-4" : ""}`} 
+           style={{ marginTop: searched ? undefined : "15vh" }}>
+        {!searched && (
+          <div className="text-center mb-5">
+            <h1 className="display-3 fw-normal mb-2">🔍 Apoia-Vector</h1>
+            <p className="text-muted">Busca semântica inteligente</p>
+          </div>
+        )}
 
-      {/* Search Form */}
-      <div className="card mb-4">
-        <div className="card-body">
-          <div className="row g-3">
-            <div className="col-12">
-              <label className="form-label">Consulta</label>
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="form-control form-control-lg"
-                  placeholder="Digite sua busca..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                />
-                <button
-                  className="btn btn-primary"
-                  onClick={() => handleSearch()}
-                  disabled={loading || !query.trim()}
+        {/* Caixa de Busca */}
+        <div style={{ width: "100%" }}>
+          <div className="position-relative" style={{ width: "100%", maxWidth: "50em", margin: "0 auto" }}>
+            <input
+              type="text"
+              className="form-control form-control-lg rounded-pill shadow-sm py-3 px-4"
+              placeholder="Digite sua busca..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              style={{
+                border: "1px solid #dfe1e5",
+                fontSize: "16px",
+                paddingRight: "48px"
+              }}
+              autoFocus
+            />
+            <button
+              className="btn btn-link position-absolute top-50 translate-middle-y p-0"
+              onClick={() => handleSearch()}
+              disabled={loading || !query.trim()}
+              style={{ right: "16px", width: "32px", height: "32px" }}
+              title="Buscar"
+            >
+              {loading ? (
+                <span className="spinner-border spinner-border-sm text-primary" />
+              ) : (
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-primary"
                 >
-                  {loading ? (
-                    <span className="spinner-border spinner-border-sm" />
-                  ) : (
-                    "Buscar"
-                  )}
-                </button>
-              </div>
-            </div>
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="m21 21-4.35-4.35"></path>
+                </svg>
+              )}
+            </button>
+          </div>
 
-            <div className="col-md-8">
-              <label className="form-label">Filtrar por Fontes</label>
-              <div className="d-flex flex-wrap gap-2">
-                {sources.map((source) => (
-                  <button
-                    key={source.id}
-                    className={`btn btn-sm ${
-                      selectedSources.includes(source.id)
-                        ? "btn-primary"
-                        : "btn-outline-secondary"
-                    }`}
-                    onClick={() => toggleSource(source.id)}
-                  >
-                    {source.name}
-                  </button>
-                ))}
-                {sources.length === 0 && (
-                  <span className="text-muted">Nenhuma fonte disponível</span>
-                )}
-              </div>
-            </div>
-
-            <div className="col-md-4">
-              <label className="form-label">Modo de Busca</label>
-              <select
-                className="form-select"
-                value={searchMode}
-                onChange={(e) => setSearchMode(e.target.value as SearchMode)}
-              >
-                <option value="hybrid">Híbrida (Vetor + Texto)</option>
-                <option value="vector">Vetorial (Semântica)</option>
-                <option value="fulltext">Texto Completo (Exata)</option>
-              </select>
-            </div>
-
-            {searchMode === "hybrid" && (
-              <div className="col-md-6">
-                <label className="form-label">
-                  Peso: Vetor {(vectorWeight * 100).toFixed(0)}% / Texto {((1 - vectorWeight) * 100).toFixed(0)}%
-                </label>
-                <input
-                  type="range"
-                  className="form-range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={vectorWeight}
-                  onChange={(e) => setVectorWeight(parseFloat(e.target.value))}
-                />
-                <small className="text-muted">
-                  Mais vetor = busca semântica. Mais texto = termos exatos.
-                </small>
-              </div>
-            )}
-
-            {searchMode !== "fulltext" && (
-              <div className={searchMode === "hybrid" ? "col-md-6" : "col-md-4"}>
-                <label className="form-label">
-                  Similaridade Mínima: {(threshold * 100).toFixed(0)}%
-                </label>
-                <input
-                  type="range"
-                  className="form-range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={threshold}
-                  onChange={(e) => setThreshold(parseFloat(e.target.value))}
-                />
-              </div>
+          {/* Botões de Filtros Rápidos */}
+          <div className="d-flex justify-content-center gap-2 mt-3">
+            <button 
+              className="btn btn-sm btn-outline-secondary rounded-pill"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              {showFilters ? "Ocultar Filtros" : "Filtros Avançados"}
+            </button>
+            {selectedSources.length > 0 && (
+              <span className="badge bg-primary rounded-pill align-self-center px-3 py-2">
+                {selectedSources.length} fonte{selectedSources.length > 1 ? "s" : ""} selecionada{selectedSources.length > 1 ? "s" : ""}
+              </span>
             )}
           </div>
+
+          {/* Filtros Expandidos */}
+          {showFilters && (
+            <div className="mt-4 p-4 bg-light rounded-3">
+              <div className="row g-3">
+                <div className="col-md-4">
+                  <label className="form-label small fw-semibold">Modo de Busca</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={searchMode}
+                    onChange={(e) => setSearchMode(e.target.value as SearchMode)}
+                  >
+                    <option value="hybrid">🔀 Híbrida (Vetor + Texto)</option>
+                    <option value="vector">🧠 Vetorial (Semântica)</option>
+                    <option value="fulltext">📝 Texto Completo (Exata)</option>
+                  </select>
+                </div>
+
+                {searchMode === "hybrid" && (
+                  <div className="col-md-4">
+                    <label className="form-label small fw-semibold">
+                      Balanceamento: Vetor {(vectorWeight * 100).toFixed(0)}% / Texto {((1 - vectorWeight) * 100).toFixed(0)}%
+                    </label>
+                    <input
+                      type="range"
+                      className="form-range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={vectorWeight}
+                      onChange={(e) => setVectorWeight(parseFloat(e.target.value))}
+                    />
+                  </div>
+                )}
+
+                {searchMode !== "fulltext" && (
+                  <div className="col-md-4">
+                    <label className="form-label small fw-semibold">
+                      Similaridade Mínima: {(threshold * 100).toFixed(0)}%
+                    </label>
+                    <input
+                      type="range"
+                      className="form-range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={threshold}
+                      onChange={(e) => setThreshold(parseFloat(e.target.value))}
+                    />
+                  </div>
+                )}
+              </div>
+                <div className="col-12 mt-3">
+                  <label className="form-label small fw-semibold">Fontes de Dados</label>
+                  <div className="d-flex flex-wrap gap-2">
+                    {sources.map((source) => (
+                      <button
+                        key={source.id}
+                        className={`btn btn-sm rounded-pill ${
+                          selectedSources.includes(source.id)
+                            ? "btn-primary"
+                            : "btn-outline-secondary"
+                        }`}
+                        onClick={() => toggleSource(source.id)}
+                      >
+                        {source.name}
+                      </button>
+                    ))}
+                    {sources.length === 0 && (
+                      <span className="text-muted small">Nenhuma fonte disponível</span>
+                    )}
+                  </div>
+                </div>
+
+            </div>
+          )}
         </div>
       </div>
 
       {/* Results */}
       {searched && (
-        <div className="mt-4">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">Resultados</h5>
-            <span className="badge bg-secondary">
-              {pagination.total} encontrado{pagination.total !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <div>
-            {results.length === 0 ? (
-              <div className="text-center py-4">
-                <p className="text-muted mb-0">
-                  Nenhum resultado encontrado para &quot;{query}&quot;
-                </p>
-              </div>
-            ) : (
-              <div className="list-group">
-                {results.map((result, index) => (
-                  <div key={result.item.id} className="list-group-item">
-                    <div className="d-flex justify-content-between align-items-start mb-2">
+        <div className="mt-5" style={{ margin: "0 auto", width: "100%" }}>
+          {results.length === 0 ? (
+            <div className="text-center py-5">
+              <p className="text-muted mb-0">
+                Nenhum resultado encontrado para <strong>&quot;{query}&quot;</strong>
+              </p>
+            </div>
+          ) : (
+            <div className="d-flex flex-column gap-4">
+              {results.map((result, index) => (
+                <div key={result.item.id} className="search-result-item">
+                  <div className="d-flex align-items-start gap-2">
+                    <span className="text-muted fw-semibold" style={{ fontSize: "1.2em", minWidth: "24px" }}>
+                      {(pagination.page - 1) * pagination.pageSize + index + 1}.
+                    </span>
+                    <div className="flex-grow-1">
+                      <p className="mb-2" style={{ fontSize: "1.2em", lineHeight: "1.6" }}>
+                        {result.item.content}
+                      </p>
+
                       <div className="d-flex align-items-center gap-2">
-                        <span className="badge bg-light text-dark">
-                          #{(pagination.page - 1) * pagination.pageSize + index + 1}
-                        </span>
                         {result.source && (
-                          <span className="badge bg-info">{result.source.name}</span>
+                          <button
+                            className="badge bg-secondary text-white border-0"
+                            style={{ fontSize: "10px", cursor: "pointer" }}
+                            onClick={() =>
+                              setExpandedItem(
+                                expandedItem === result.item.id ? null : result.item.id
+                              )
+                            }
+                            title="Clique para ver detalhes"
+                          >
+                            {result.source.name}
+                          </button>
                         )}
-                      </div>
-                      <div className="d-flex gap-2 align-items-center">
-                        {searchMode === "hybrid" && (
-                          <>
-                            {result.vectorScore !== undefined && (
-                              <span className="badge bg-primary" title="Score Vetorial (similaridade semântica)">
-                                V: {(result.vectorScore * 100).toFixed(0)}%
-                              </span>
-                            )}
-                            {result.textScore !== undefined && (
-                              <span className={`badge ${result.textScore > 0 ? "bg-warning text-dark" : "bg-light text-muted"}`} title="Score Texto (match de palavras)">
-                                T: {(result.textScore * 100).toFixed(0)}%
-                              </span>
-                            )}
-                          </>
-                        )}
-                        <span className={`badge similarity-badge ${
-                          result.similarity >= 0.9 ? "bg-success" :
-                          result.similarity >= 0.8 ? "bg-primary" :
-                          result.similarity >= 0.7 ? "bg-warning" : "bg-secondary"
-                        }`} title={searchMode === "hybrid" ? "Score Combinado (V×peso + T×peso)" : "Score"}>
-                          {searchMode === "hybrid" ? "C: " : ""}{formatSimilarity(result.similarity)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="mb-2">{result.item.content}</p>
-
-                    <div className="d-flex justify-content-between align-items-center">
-                      <small className="text-muted">
-                        ID: {result.item.externalId}
-                      </small>
-                      <button
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() =>
-                          setExpandedItem(
-                            expandedItem === result.item.id ? null : result.item.id
-                          )
-                        }
-                      >
-                        {expandedItem === result.item.id ? "Ocultar JSON" : "Ver JSON"}
-                      </button>
-                    </div>
-
-                    {expandedItem === result.item.id && (
-                      <div className="json-preview mt-3">
-                        <pre className="mb-0">
-                          {JSON.stringify(
-                            result.item.transformedData || result.item.originalData,
-                            null,
-                            2
+                        <div className="d-flex gap-1">
+                          {searchMode === "hybrid" && (
+                            <>
+                              {result.vectorScore !== undefined && (
+                                <span 
+                                  className="badge border border-primary text-primary bg-transparent" 
+                                  title="Score Vetorial (similaridade semântica)"
+                                  style={{ fontSize: "10px" }}
+                                >
+                                  V: {Math.round(result.vectorScore * 100)}%
+                                </span>
+                              )}
+                              {result.textScore !== undefined && (
+                                <span 
+                                  className={`badge border ${result.textScore > 0 ? "border-warning text-warning" : "border-secondary text-secondary"} bg-transparent`}
+                                  title="Score Texto (match de palavras)"
+                                  style={{ fontSize: "10px" }}
+                                >
+                                  T: {Math.round(result.textScore * 100)}%
+                                </span>
+                              )}
+                            </>
                           )}
-                        </pre>
+                          <span 
+                            className={`badge border bg-transparent ${
+                              result.similarity >= 0.9 ? "border-success text-success" :
+                              result.similarity >= 0.8 ? "border-primary text-primary" :
+                              result.similarity >= 0.7 ? "border-warning text-warning" : "border-secondary text-secondary"
+                            }`}
+                            title={searchMode === "hybrid" ? "Score Combinado" : "Score"}
+                            style={{ fontSize: "10px" }}
+                          >
+                            {Math.round(result.similarity * 100)}%
+                          </span>
+                        </div>
                       </div>
-                    )}
+
+                      {expandedItem === result.item.id && (
+                        <div className="mt-3 p-3 bg-light rounded" style={{ fontSize: "12px" }}>
+                          <pre className="mb-0" style={{ maxHeight: "300px", overflow: "auto" }}>
+                            {JSON.stringify(
+                              result.item.transformedData || result.item.originalData,
+                              null,
+                              2
+                            )}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
-            <div className="mt-4">
+            <div className="mt-5 mb-4">
               <nav>
                 <ul className="pagination justify-content-center mb-0">
                   <li className={`page-item ${pagination.page === 1 ? "disabled" : ""}`}>
@@ -357,15 +400,28 @@ export default function Home() {
                   </li>
                 </ul>
               </nav>
-              <div className="text-center mt-2 pagination-info">
-                Mostrando {(pagination.page - 1) * pagination.pageSize + 1} -{" "}
-                {Math.min(pagination.page * pagination.pageSize, pagination.total)} de{" "}
-                {pagination.total}
+              <div className="text-center mt-3">
+                <small className="text-muted">
+                  {pagination.total.toLocaleString("pt-BR")} resultado{pagination.total !== 1 ? "s" : ""}
+                </small>
               </div>
             </div>
           )}
         </div>
       )}
+
+      <style jsx>{`
+        .search-result-item {
+          padding: 12px 0;
+        }
+        
+        .search-result-item:hover {
+          background-color: #fafafa;
+          margin: 0 -12px;
+          padding: 12px;
+          border-radius: 8px;
+        }
+      `}</style>
     </div>
   );
 }
