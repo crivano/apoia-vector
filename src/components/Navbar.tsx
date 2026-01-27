@@ -35,23 +35,15 @@ export default function Navbar() {
                 href="/" 
                 className={`nav-link ${isActive("/") && pathname === "/" ? "active" : ""}`}
               >
-                Dashboard
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link 
-                href="/sources" 
-                className={`nav-link ${isActive("/sources") ? "active" : ""}`}
-              >
-                Fontes
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link 
-                href="/search" 
-                className={`nav-link ${isActive("/search") ? "active" : ""}`}
-              >
                 Busca
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link 
+                href="/dashboard" 
+                className={`nav-link ${isActive("/dashboard") ? "active" : ""}`}
+              >
+                Dashboard
               </Link>
             </li>
           </ul>
