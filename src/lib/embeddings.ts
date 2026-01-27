@@ -2,6 +2,7 @@ import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
 import { embed, embedMany } from "ai";
 import getDb from "./db";
+import crypto from "crypto";
 
 // Choose embedding provider based on environment variable
 // Options: "openai" or "gemini" - both use 1536 dimensions for best quality
@@ -9,6 +10,9 @@ const EMBEDDING_PROVIDER = process.env.EMBEDDING_PROVIDER || "openai";
 
 // Daily embedding generation limit (0 = unlimited)
 const DAILY_EMBEDDING_LIMIT = parseInt(process.env.DAILY_EMBEDDING_LIMIT || "10000", 10);
+
+// Cache TTL in hours (default: 24 hours)
+const CACHE_TTL_HOURS = parseInt(process.env.EMBEDDING_CACHE_TTL_HOURS || "24", 10);
 
 // Gemini embedding-001 supports up to 3072 dimensions
 // We use 1536 to match OpenAI and get better MTEB score (68.17 vs 67.99)
@@ -32,6 +36,60 @@ const geminiProviderOptions = {
  */
 function getTodayDate(): string {
   return new Date().toISOString().split("T")[0];
+}
+
+/**
+ * Generate SHA-256 hash of text for cache key
+ */
+function hashText(text: string): string {
+  return crypto.createHash("sha256").update(text.toLowerCase().trim()).digest("hex");
+}
+
+/**
+ * Get cached embedding if available and not expired
+ */
+async function getCachedEmbedding(text: string): Promise<number[] | null> {
+  const db = getDb();
+  const hash = hashText(text);
+  const now = new Date();
+
+  const cached = await db("embedding_cache")
+    .where("query_hash", hash)
+    .where("expires_at", ">", now)
+    .first();
+
+  if (cached) {
+    const embedding = typeof cached.embedding === "string" 
+      ? JSON.parse(cached.embedding) 
+      : cached.embedding;
+    return embedding;
+  }
+
+  return null;
+}
+
+/**
+ * Store embedding in cache
+ */
+async function setCachedEmbedding(text: string, embedding: number[]): Promise<void> {
+  const db = getDb();
+  const hash = hashText(text);
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + CACHE_TTL_HOURS);
+
+  await db("embedding_cache")
+    .insert({
+      query_hash: hash,
+      query_text: text,
+      embedding: JSON.stringify(embedding),
+      expires_at: expiresAt,
+    })
+    .onConflict("query_hash")
+    .merge({
+      embedding: JSON.stringify(embedding),
+      expires_at: expiresAt,
+      updated_at: new Date(),
+    });
 }
 
 /**
@@ -111,6 +169,12 @@ export async function getDailyUsage(): Promise<{ date: string; used: number; lim
  * Generate embedding for a single text
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
+  // Check cache first
+  const cached = await getCachedEmbedding(text);
+  if (cached) {
+    return cached;
+  }
+
   // Check and increment daily usage (1 embedding)
   await checkAndIncrementUsage(1);
 
@@ -119,6 +183,9 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     value: text,
     ...(isGemini && { providerOptions: geminiProviderOptions }),
   });
+  
+  // Store in cache for future use
+  await setCachedEmbedding(text, embedding);
   
   return embedding;
 }
