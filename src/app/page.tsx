@@ -88,6 +88,41 @@ export default function Home() {
     return `${(similarity * 100).toFixed(1)}%`;
   };
 
+  const renderContent = (result: SearchResult) => {
+    // If source has a display template, use it
+    if (result.source?.displayTemplate) {
+      const template = result.source.displayTemplate;
+      const data = result.item.transformedData || result.item.originalData;
+      
+      // Simple template engine: replace {{$.field}} with values from data
+      let rendered = template;
+      const matches = template.match(/\{\{\$\.[^}]+\}\}/g);
+      
+      if (matches) {
+        matches.forEach((match) => {
+          // Extract path: {{$.field.subfield}} -> field.subfield
+          const path = match.slice(4, -2); // Remove {{$. and }}
+          const value = getNestedValue(data, path);
+          rendered = rendered.replace(match, value !== undefined ? String(value) : "");
+        });
+      }
+      
+      return rendered;
+    }
+    
+    // Default: just return the plain content
+    return result.item.content;
+  };
+
+  const getNestedValue = (obj: Record<string, unknown>, path: string): unknown => {
+    return path.split(".").reduce((current: unknown, key: string) => {
+      if (current && typeof current === "object" && key in current) {
+        return (current as Record<string, unknown>)[key];
+      }
+      return undefined;
+    }, obj);
+  };
+
   return (
     <div className="d-flex flex-column" style={{ minHeight: "80vh" }}>
       {/* Logo e Campo de Busca - Estilo Google */}
@@ -256,9 +291,13 @@ export default function Home() {
                       {(pagination.page - 1) * pagination.pageSize + index + 1}.
                     </span>
                     <div className="flex-grow-1">
-                      <p className="mb-2" style={{ fontSize: "1.2em", lineHeight: "1.6" }}>
-                        {result.item.content}
-                      </p>
+                      <div 
+                        style={{ fontSize: "1.2em" }}
+                        dangerouslySetInnerHTML={{ 
+                          __html: renderContent(result) 
+                        }}
+                        className="mb-2"
+                      />
 
                       <div className="d-flex align-items-center gap-2">
                         {result.source && (

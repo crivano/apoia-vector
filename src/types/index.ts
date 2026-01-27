@@ -14,6 +14,9 @@ export interface DataSource {
   contentPath: string;
   contentTemplate?: string; // Template for combining multiple fields
 
+  // Display template for search results
+  displayTemplate?: string; // HTML template for rendering search results
+
   // Pagination
   pagination?: PaginationConfig;
 
@@ -70,7 +73,7 @@ export interface SearchResult {
   similarity: number;
   vectorScore?: number;
   textScore?: number;
-  source: Pick<DataSource, "id" | "name" | "description" | "endpoint" | "method"> | null;
+  source: Pick<DataSource, "id" | "name" | "description" | "endpoint" | "method" | "displayTemplate"> | null;
 }
 
 export interface SearchResponse {

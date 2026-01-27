@@ -292,5 +292,6 @@ function transformSource(source: Record<string, unknown>) {
     description: source.description ? String(source.description) : undefined,
     endpoint: String(source.endpoint),
     method: source.method as "GET" | "POST",
+    displayTemplate: source.display_template ? String(source.display_template) : undefined,
   };
 }

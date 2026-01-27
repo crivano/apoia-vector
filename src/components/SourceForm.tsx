@@ -23,6 +23,7 @@ export default function SourceForm({ source, onSubmit, saving }: SourceFormProps
     idPath: source?.idPath || "$.id",
     contentPath: source?.contentPath || "$.content",
     contentTemplate: source?.contentTemplate || "",
+    displayTemplate: source?.displayTemplate || "",
     usePagination: !!source?.pagination,
     paginationType: source?.pagination?.type || "page",
     paginationLocation: source?.pagination?.location || "query",
@@ -81,6 +82,7 @@ export default function SourceForm({ source, onSubmit, saving }: SourceFormProps
         idPath: formData.idPath,
         contentPath: formData.contentPath,
         contentTemplate: formData.contentTemplate || undefined,
+        displayTemplate: formData.displayTemplate || undefined,
         pagination,
         transformScript: formData.transformScript || undefined,
         syncInterval: formData.syncInterval,
@@ -346,6 +348,21 @@ export default function SourceForm({ source, onSubmit, saving }: SourceFormProps
                   />
                   <div className="form-text">
                     Use {`{{$.campo}}`} para combinar múltiplos campos no conteúdo
+                  </div>
+                </div>
+                <div className="col-12">
+                  <label className="form-label">Template de Exibição (opcional)</label>
+                  <textarea
+                    className="form-control font-monospace"
+                    name="displayTemplate"
+                    value={formData.displayTemplate}
+                    onChange={handleChange}
+                    rows={4}
+                    placeholder={'<div><strong>{{$.titulo}}</strong><br>{{$.descricao}}</div>'}
+                  />
+                  <div className="form-text">
+                    Template HTML para exibir o resultado na busca. Use {`{{$.campo}}`} para inserir valores do JSON.
+                    Se vazio, será exibido apenas o conteúdo simples.
                   </div>
                 </div>
               </div>
