@@ -200,14 +200,14 @@ export default function SearchPage() {
 
       {/* Results */}
       {searched && (
-        <div className="card">
-          <div className="card-header d-flex justify-content-between align-items-center">
+        <div className="mt-4">
+          <div className="d-flex justify-content-between align-items-center mb-3">
             <h5 className="mb-0">Resultados</h5>
             <span className="badge bg-secondary">
               {pagination.total} encontrado{pagination.total !== 1 ? "s" : ""}
             </span>
           </div>
-          <div className="card-body search-results">
+          <div>
             {results.length === 0 ? (
               <div className="text-center py-4">
                 <p className="text-muted mb-0">
@@ -215,7 +215,7 @@ export default function SearchPage() {
                 </p>
               </div>
             ) : (
-              <div className="list-group list-group-flush">
+              <div className="list-group">
                 {results.map((result, index) => (
                   <div key={result.item.id} className="list-group-item">
                     <div className="d-flex justify-content-between align-items-start mb-2">
@@ -282,16 +282,25 @@ export default function SearchPage() {
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
+                ))}n              </div>
             )}
           </div>
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
-            <div className="card-footer">
+            <div className="mt-4">
               <nav>
                 <ul className="pagination justify-content-center mb-0">
+                  <li className={`page-item ${pagination.page === 1 ? "disabled" : ""}`}>
+                    <button
+                      className="page-link"
+                      onClick={() => handleSearch(1)}
+                      disabled={pagination.page === 1}
+                      title="Primeira página"
+                    >
+                      «
+                    </button>
+                  </li>
                   <li className={`page-item ${pagination.page === 1 ? "disabled" : ""}`}>
                     <button
                       className="page-link"
@@ -333,6 +342,16 @@ export default function SearchPage() {
                       disabled={pagination.page === pagination.totalPages}
                     >
                       Próxima
+                    </button>
+                  </li>
+                  <li className={`page-item ${pagination.page === pagination.totalPages ? "disabled" : ""}`}>
+                    <button
+                      className="page-link"
+                      onClick={() => handleSearch(pagination.totalPages)}
+                      disabled={pagination.page === pagination.totalPages}
+                      title="Última página"
+                    >
+                      »
                     </button>
                   </li>
                 </ul>

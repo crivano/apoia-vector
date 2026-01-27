@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { generateEmbedding } from "@/lib/embeddings";
 
-// GET /api/debug - Debug search scoring
+// GET /api/debug - Debug search scoring v3
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -13,52 +13,29 @@ export async function GET(request: NextRequest) {
     const queryEmbedding = await generateEmbedding(query);
     const embeddingStr = `[${queryEmbedding.join(",")}]`;
 
-    // OR-based tsquery for partial matching
-    const orTsQuery = `to_tsquery('portuguese', 
-      array_to_string(
-        array(SELECT lexeme FROM unnest(to_tsvector('portuguese', $1)) AS t(lexeme)),
-        ' | '
+    // Single query to get all info consistently
+    const allInOne = await db.raw(`
+      WITH vector_ranked AS (
+        SELECT 
+          external_id,
+          content,
+          fts_tokens,
+          (1 - (embedding <=> ?::vector)) as vector_score,
+          ts_rank_cd(fts_tokens, plainto_tsquery('portuguese', ?)) as text_score,
+          ROW_NUMBER() OVER (ORDER BY embedding <=> ?::vector) as vector_rank
+        FROM vector_items
       )
-    )`;
-
-    // Check specific item with OR-based matching
-    const item = await db.raw(`
       SELECT 
         external_id,
-        LEFT(content, 100) as content_preview,
-        fts_tokens IS NOT NULL as has_fts,
-        (1 - (embedding <=> $2::vector)) as vector_score,
-        ts_rank_cd(fts_tokens, ${orTsQuery}) as raw_text_rank,
-        to_tsvector('portuguese', $1)::text as query_tokens,
-        array_to_string(
-          array(SELECT lexeme FROM unnest(to_tsvector('portuguese', $1)) AS t(lexeme)),
-          ' | '
-        ) as or_query
-      FROM vector_items 
-      WHERE external_id = $3
-    `, [query, embeddingStr, externalId]);
-
-    // Check top 5 by vector only
-    const topByVector = await db("vector_items")
-      .select(
-        "external_id",
-        db.raw("LEFT(content, 80) as content"),
-        db.raw("(1 - (embedding <=> ?::vector)) as vector_score", [embeddingStr])
-      )
-      .orderByRaw("embedding <=> ?::vector", [embeddingStr])
-      .limit(5);
-
-    // Check top 5 by text only (OR-based)
-    const topByText = await db.raw(`
-      SELECT 
-        external_id,
-        LEFT(content, 80) as content,
-        ts_rank_cd(fts_tokens, ${orTsQuery}) as text_score
-      FROM vector_items
-      WHERE fts_tokens @@ ${orTsQuery}
-      ORDER BY ts_rank_cd(fts_tokens, ${orTsQuery}) DESC
-      LIMIT 5
-    `, [query, query, query]);
+        LEFT(content, 150) as content,
+        vector_score,
+        text_score,
+        vector_rank,
+        fts_tokens IS NOT NULL as has_fts
+      FROM vector_ranked
+      WHERE vector_rank <= 15 OR external_id = ?
+      ORDER BY vector_rank
+    `, [embeddingStr, query, embeddingStr, externalId]);
 
     // Count items with fts_tokens
     const ftsCount = await db("vector_items")
@@ -66,12 +43,17 @@ export async function GET(request: NextRequest) {
       .count("id as count")
       .first();
 
+    // Find the target item in results
+    const targetItem = allInOne.rows.find((r: { external_id: string }) => r.external_id === externalId);
+    const top15 = allInOne.rows.filter((r: { vector_rank: string }) => parseInt(r.vector_rank) <= 15);
+
     return NextResponse.json({
       query,
-      targetItem: item.rows[0],
+      targetExternalId: externalId,
+      targetItem,
       ftsPopulatedCount: ftsCount?.count,
-      topByVector,
-      topByText: topByText.rows,
+      top15ByVector: top15,
+      embeddingPreview: `[${queryEmbedding.slice(0, 5).join(",")}...]`,
     });
   } catch (error) {
     console.error("Debug error:", error);

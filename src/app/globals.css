@@ -28,11 +28,6 @@ body {
   border-left: 4px solid var(--primary-color);
 }
 
-.search-results {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
 .similarity-badge {
   font-size: 0.75rem;
 }

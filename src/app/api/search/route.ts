@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
       offset = 0, 
       threshold = 0.3,
       mode = "hybrid" as SearchMode,
-      vectorWeight = 0.7 
+      vectorWeight = 0.7,
+      debug = false
     } = body;
 
     if (!query || typeof query !== "string") {
@@ -97,11 +98,17 @@ export async function POST(request: NextRequest) {
       totalPages,
     };
 
+    // Add debug info if requested
+    if (debug && mode === "vector") {
+      const queryEmbedding = await generateEmbedding(query);
+      (response as unknown as Record<string, unknown>).debugEmbedding = `[${queryEmbedding.slice(0, 5).join(",")}...]`;
+    }
+
     return NextResponse.json(response);
   } catch (error) {
     console.error("Error performing search:", error);
     return NextResponse.json(
-      { error: "Failed to perform search" },
+      { error: "Failed to perform search", details: String(error) },
       { status: 500 }
     );
   }
@@ -153,31 +160,54 @@ async function buildVectorQuery(
 ) {
   const embeddingStr = `[${queryEmbedding.join(",")}]`;
 
-  let searchQuery = db("vector_items")
-    .select(
-      "vector_items.*",
-      db.raw("1 - (embedding <=> ?::vector) as vector_score", [embeddingStr])
-    )
-    .whereRaw("1 - (embedding <=> ?::vector) >= ?", [embeddingStr, threshold])
-    .orderByRaw("embedding <=> ?::vector", [embeddingStr]);
-
-  if (sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0) {
-    searchQuery = searchQuery.whereIn("source_id", sourceIds);
-  }
-
-  // Count query
-  let countQuery = db("vector_items")
-    .whereRaw("1 - (embedding <=> ?::vector) >= ?", [embeddingStr, threshold]);
+  // Build params for CTE approach - single embedding reference
+  const params: (string | number)[] = [embeddingStr];
   
+  let sourceFilterCTE = "";
   if (sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0) {
-    countQuery = countQuery.whereIn("source_id", sourceIds);
+    sourceFilterCTE = `WHERE source_id IN (${sourceIds.map(() => "?").join(",")})`;
+    params.push(...sourceIds);
   }
+  
+  params.push(threshold, limit, offset);
 
-  const totalResult = await countQuery.count("id as count").first();
-  const total = Number(totalResult?.count) || 0;
-  const results = await searchQuery.limit(limit).offset(offset);
+  // Use CTE for consistent embedding - only one embedding reference
+  const results = await db.raw(`
+    WITH scored AS (
+      SELECT 
+        *,
+        (1 - (embedding <=> ?::vector)) as vector_score
+      FROM vector_items
+      ${sourceFilterCTE}
+    )
+    SELECT * FROM scored
+    WHERE vector_score >= ?
+    ORDER BY vector_score DESC
+    LIMIT ? OFFSET ?
+  `, params);
 
-  return { results, total };
+  // Count query with same CTE approach
+  const countParams: (string | number)[] = [embeddingStr];
+  if (sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0) {
+    countParams.push(...sourceIds);
+  }
+  countParams.push(threshold);
+
+  const totalResult = await db.raw(`
+    WITH scored AS (
+      SELECT 
+        id,
+        (1 - (embedding <=> ?::vector)) as vector_score
+      FROM vector_items
+      ${sourceFilterCTE}
+    )
+    SELECT COUNT(*) as count FROM scored
+    WHERE vector_score >= ?
+  `, countParams);
+
+  const total = Number(totalResult.rows[0]?.count) || 0;
+
+  return { results: results.rows, total };
 }
 
 // Hybrid search combining vector and full-text
@@ -193,53 +223,66 @@ async function buildHybridQuery(
   textWeight: number
 ) {
   const embeddingStr = `[${queryEmbedding.join(",")}]`;
+  const hasSourceFilter = sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0;
 
-  // ts_rank_cd typically returns values between 0 and ~0.1
-  // We normalize it to 0-1 range for fair comparison with vector score
-  // Using a multiplier of 10 and capping at 1.0
-  const normalizedTextScore = `LEAST(COALESCE(ts_rank_cd(fts_tokens, plainto_tsquery('portuguese', ?)), 0) * 10, 1.0)`;
-
-  // Use a CTE (Common Table Expression) for better performance with RRF-style scoring
-  let searchQuery = db("vector_items")
-    .select(
-      "vector_items.*",
-      // Vector score: cosine similarity (0-1)
-      db.raw("(1 - (embedding <=> ?::vector)) as vector_score", [embeddingStr]),
-      // Text score: normalized to 0-1 range
-      db.raw(`${normalizedTextScore} as text_score`, [query]),
-      // Combined score with weights
-      db.raw(`
-        ((1 - (embedding <=> ?::vector)) * ?) + 
-        (${normalizedTextScore} * ?) as combined_score
-      `, [embeddingStr, vectorWeight, query, textWeight])
-    )
-    .where(function() {
-      // Match if vector similarity passes threshold OR text matches
-      this.whereRaw("1 - (embedding <=> ?::vector) >= ?", [embeddingStr, threshold])
-        .orWhereRaw("fts_tokens @@ plainto_tsquery('portuguese', ?)", [query]);
-    })
-    .orderByRaw("combined_score DESC");
-
-  if (sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0) {
-    searchQuery = searchQuery.whereIn("source_id", sourceIds);
-  }
-
-  // Count query
-  let countQuery = db("vector_items")
-    .where(function() {
-      this.whereRaw("1 - (embedding <=> ?::vector) >= ?", [embeddingStr, threshold])
-        .orWhereRaw("fts_tokens @@ plainto_tsquery('portuguese', ?)", [query]);
-    });
+  // Build params for CTE approach
+  const params: (string | number)[] = [embeddingStr, query];
   
-  if (sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0) {
-    countQuery = countQuery.whereIn("source_id", sourceIds);
+  let sourceFilterCTE = "";
+  if (hasSourceFilter) {
+    sourceFilterCTE = `WHERE source_id IN (${sourceIds!.map(() => "?").join(",")})`;
+    params.push(...sourceIds!);
+  }
+  
+  params.push(vectorWeight, textWeight, threshold, query, limit, offset);
+
+  // Use CTE for consistent scores - calculate once, use everywhere
+  const results = await db.raw(`
+    WITH scored AS (
+      SELECT 
+        *,
+        (1 - (embedding <=> ?::vector)) as vector_score,
+        LEAST(COALESCE(ts_rank_cd(fts_tokens, plainto_tsquery('portuguese', ?)), 0) * 10, 1.0) as text_score
+      FROM vector_items
+      ${sourceFilterCTE}
+    )
+    SELECT 
+      *,
+      (vector_score * ?) + (text_score * ?) as combined_score
+    FROM scored
+    WHERE vector_score >= ? OR fts_tokens @@ plainto_tsquery('portuguese', ?)
+    ORDER BY (vector_score * ${vectorWeight}) + (text_score * ${textWeight}) DESC
+    LIMIT ? OFFSET ?
+  `, params);
+
+  // Count query with same CTE approach
+  const countParams: (string | number)[] = [embeddingStr];
+  if (hasSourceFilter) {
+    countParams.push(...sourceIds!);
+  }
+  countParams.push(threshold, query);
+
+  let countSourceFilterCTE = "";
+  if (hasSourceFilter) {
+    countSourceFilterCTE = `WHERE source_id IN (${sourceIds!.map(() => "?").join(",")})`;
   }
 
-  const totalResult = await countQuery.count("id as count").first();
-  const total = Number(totalResult?.count) || 0;
-  const results = await searchQuery.limit(limit).offset(offset);
+  const totalResult = await db.raw(`
+    WITH scored AS (
+      SELECT 
+        id,
+        (1 - (embedding <=> ?::vector)) as vector_score,
+        fts_tokens
+      FROM vector_items
+      ${countSourceFilterCTE}
+    )
+    SELECT COUNT(*) as count FROM scored
+    WHERE vector_score >= ? OR fts_tokens @@ plainto_tsquery('portuguese', ?)
+  `, countParams);
 
-  return { results, total };
+  const total = Number(totalResult.rows[0]?.count) || 0;
+
+  return { results: results.rows, total };
 }
 
 function transformSource(source: Record<string, unknown>) {
