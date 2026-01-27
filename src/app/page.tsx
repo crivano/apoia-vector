@@ -70,7 +70,7 @@ export default function Home() {
 
       {/* Stats Cards */}
       <div className="row mb-4">
-        <div className="col-md-4">
+        <div className="col-md-6">
           <div className="card bg-primary text-white">
             <div className="card-body">
               <h5 className="card-title">Fontes Configuradas</h5>
@@ -78,26 +78,11 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div className="col-md-4">
+        <div className="col-md-6">
           <div className="card bg-success text-white">
             <div className="card-body">
               <h5 className="card-title">Itens Indexados</h5>
               <p className="display-6 mb-0">{stats.totalItems}</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card bg-info text-white">
-            <div className="card-body">
-              <h5 className="card-title">Ações Rápidas</h5>
-              <div className="d-flex gap-2 mt-2">
-                <Link href="/sources/new" className="btn btn-light btn-sm">
-                  + Nova Fonte
-                </Link>
-                <Link href="/search" className="btn btn-outline-light btn-sm">
-                  Buscar
-                </Link>
-              </div>
             </div>
           </div>
         </div>

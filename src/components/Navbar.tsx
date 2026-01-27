@@ -55,12 +55,6 @@ export default function Navbar() {
               </Link>
             </li>
           </ul>
-          
-          <div className="d-flex">
-            <Link href="/sources/new" className="btn btn-outline-light btn-sm">
-              + Nova Fonte
-            </Link>
-          </div>
         </div>
       </div>
     </nav>
