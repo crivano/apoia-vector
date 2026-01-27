@@ -1,0 +1,114 @@
+import { NextRequest, NextResponse } from "next/server";
+import getDb from "@/lib/db";
+
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+// GET /api/sources/[id]
+export async function GET(_request: NextRequest, { params }: RouteParams) {
+  try {
+    const { id } = await params;
+    const db = getDb();
+    const source = await db("data_sources").where("id", id).first();
+
+    if (!source) {
+      return NextResponse.json({ error: "Source not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ source: transformSource(source) });
+  } catch (error) {
+    console.error("Error fetching source:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch source" },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/sources/[id]
+export async function PUT(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const db = getDb();
+
+    const updates = {
+      name: body.name,
+      description: body.description || null,
+      endpoint: body.endpoint,
+      method: body.method || "GET",
+      headers: JSON.stringify(body.headers || {}),
+      body: JSON.stringify(body.body || {}),
+      query_params: JSON.stringify(body.queryParams || {}),
+      array_path: body.arrayPath,
+      id_path: body.idPath,
+      content_path: body.contentPath,
+      content_template: body.contentTemplate || null,
+      pagination: body.pagination ? JSON.stringify(body.pagination) : null,
+      transform_script: body.transformScript || null,
+      sync_interval: body.syncInterval || 60,
+      is_active: body.isActive !== false,
+      updated_at: new Date(),
+    };
+
+    await db("data_sources").where("id", id).update(updates);
+
+    const updated = await db("data_sources").where("id", id).first();
+
+    return NextResponse.json({
+      source: transformSource(updated),
+      message: "Source updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating source:", error);
+    return NextResponse.json(
+      { error: "Failed to update source" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/sources/[id]
+export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+  try {
+    const { id } = await params;
+    const db = getDb();
+
+    await db("data_sources").where("id", id).delete();
+
+    return NextResponse.json({ message: "Source deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting source:", error);
+    return NextResponse.json(
+      { error: "Failed to delete source" },
+      { status: 500 }
+    );
+  }
+}
+
+function transformSource(source: Record<string, unknown>) {
+  return {
+    id: source.id,
+    name: source.name,
+    description: source.description,
+    endpoint: source.endpoint,
+    method: source.method,
+    headers: typeof source.headers === "string" ? JSON.parse(source.headers) : source.headers,
+    body: typeof source.body === "string" ? JSON.parse(source.body) : source.body,
+    queryParams: typeof source.query_params === "string" ? JSON.parse(source.query_params) : source.query_params,
+    arrayPath: source.array_path,
+    idPath: source.id_path,
+    contentPath: source.content_path,
+    contentTemplate: source.content_template,
+    pagination: source.pagination ? (typeof source.pagination === "string" ? JSON.parse(source.pagination) : source.pagination) : null,
+    transformScript: source.transform_script,
+    syncInterval: source.sync_interval,
+    isActive: source.is_active,
+    lastSync: source.last_sync,
+    lastError: source.last_error,
+    itemCount: source.item_count,
+    createdAt: source.created_at,
+    updatedAt: source.updated_at,
+  };
+}

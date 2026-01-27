@@ -1,65 +1,182 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import type { DataSource } from "@/types";
 
 export default function Home() {
+  const [sources, setSources] = useState<DataSource[]>([]);
+  const [stats, setStats] = useState({ totalSources: 0, totalItems: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [sourcesRes, statsRes] = await Promise.all([
+        fetch("/api/sources"),
+        fetch("/api/stats"),
+      ]);
+      
+      if (sourcesRes.ok) {
+        const data = await sourcesRes.json();
+        setSources(data.sources || []);
+      }
+      
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const syncSource = async (sourceId: string) => {
+    try {
+      const res = await fetch(`/api/sources/${sourceId}/sync`, { method: "POST" });
+      if (res.ok) {
+        fetchData();
+      }
+    } catch (error) {
+      console.error("Erro ao sincronizar:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "50vh" }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Carregando...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div>
+      <div className="row mb-4">
+        <div className="col-12">
+          <h1 className="display-5 fw-bold">Apoia-Vector</h1>
+          <p className="lead text-muted">
+            Sistema de indexação vetorial de fontes de dados REST
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="row mb-4">
+        <div className="col-md-4">
+          <div className="card bg-primary text-white">
+            <div className="card-body">
+              <h5 className="card-title">Fontes Configuradas</h5>
+              <p className="display-6 mb-0">{stats.totalSources}</p>
+            </div>
+          </div>
         </div>
-      </main>
+        <div className="col-md-4">
+          <div className="card bg-success text-white">
+            <div className="card-body">
+              <h5 className="card-title">Itens Indexados</h5>
+              <p className="display-6 mb-0">{stats.totalItems}</p>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card bg-info text-white">
+            <div className="card-body">
+              <h5 className="card-title">Ações Rápidas</h5>
+              <div className="d-flex gap-2 mt-2">
+                <Link href="/sources/new" className="btn btn-light btn-sm">
+                  + Nova Fonte
+                </Link>
+                <Link href="/search" className="btn btn-outline-light btn-sm">
+                  Buscar
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sources List */}
+      <div className="card">
+        <div className="card-header d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">Fontes de Dados</h5>
+          <Link href="/sources/new" className="btn btn-primary btn-sm">
+            + Nova Fonte
+          </Link>
+        </div>
+        <div className="card-body">
+          {sources.length === 0 ? (
+            <div className="text-center py-5">
+              <p className="text-muted mb-3">Nenhuma fonte configurada ainda.</p>
+              <Link href="/sources/new" className="btn btn-primary">
+                Configurar Primeira Fonte
+              </Link>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Endpoint</th>
+                    <th>Método</th>
+                    <th>Itens</th>
+                    <th>Última Sync</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sources.map((source) => (
+                    <tr key={source.id}>
+                      <td className="fw-medium">{source.name}</td>
+                      <td>
+                        <code className="small">{source.endpoint}</code>
+                      </td>
+                      <td>
+                        <span className={`badge ${source.method === "GET" ? "bg-success" : "bg-warning"}`}>
+                          {source.method}
+                        </span>
+                      </td>
+                      <td>{source.itemCount || 0}</td>
+                      <td>
+                        {source.lastSync
+                          ? new Date(source.lastSync).toLocaleString("pt-BR")
+                          : "Nunca"}
+                      </td>
+                      <td>
+                        <span className={`badge ${source.isActive ? "bg-success" : "bg-secondary"}`}>
+                          {source.isActive ? "Ativo" : "Inativo"}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="btn-group btn-group-sm">
+                          <Link href={`/sources/${source.id}`} className="btn btn-outline-primary">
+                            Editar
+                          </Link>
+                          <button
+                            className="btn btn-outline-success"
+                            onClick={() => syncSource(source.id)}
+                          >
+                            Sync
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
