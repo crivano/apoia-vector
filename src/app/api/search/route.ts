@@ -125,9 +125,9 @@ async function buildFullTextQuery(
   let searchQuery = db("vector_items")
     .select(
       "vector_items.*",
-      db.raw("ts_rank_cd(fts_tokens, plainto_tsquery('portuguese', ?)) as text_score", [query])
+      db.raw("ts_rank_cd(fts_tokens, plainto_tsquery('portuguese_unaccent', ?)) as text_score", [query])
     )
-    .whereRaw("fts_tokens @@ plainto_tsquery('portuguese', ?)", [query])
+    .whereRaw("fts_tokens @@ plainto_tsquery('portuguese_unaccent', ?)", [query])
     .orderByRaw("text_score DESC");
 
   if (sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0) {
@@ -136,7 +136,7 @@ async function buildFullTextQuery(
 
   // Count query
   let countQuery = db("vector_items")
-    .whereRaw("fts_tokens @@ plainto_tsquery('portuguese', ?)", [query]);
+    .whereRaw("fts_tokens @@ plainto_tsquery('portuguese_unaccent', ?)", [query]);
   
   if (sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0) {
     countQuery = countQuery.whereIn("source_id", sourceIds);
@@ -242,7 +242,7 @@ async function buildHybridQuery(
       SELECT 
         *,
         (1 - (embedding <=> ?::vector)) as vector_score,
-        LEAST(COALESCE(ts_rank_cd(fts_tokens, plainto_tsquery('portuguese', ?)), 0) * 10, 1.0) as text_score
+        LEAST(COALESCE(ts_rank_cd(fts_tokens, plainto_tsquery('portuguese_unaccent', ?)), 0) * 10, 1.0) as text_score
       FROM vector_items
       ${sourceFilterCTE}
     )
@@ -250,7 +250,7 @@ async function buildHybridQuery(
       *,
       (vector_score * ?) + (text_score * ?) as combined_score
     FROM scored
-    WHERE vector_score >= ? OR fts_tokens @@ plainto_tsquery('portuguese', ?)
+    WHERE vector_score >= ? OR fts_tokens @@ plainto_tsquery('portuguese_unaccent', ?)
     ORDER BY (vector_score * ${vectorWeight}) + (text_score * ${textWeight}) DESC
     LIMIT ? OFFSET ?
   `, params);
@@ -277,7 +277,7 @@ async function buildHybridQuery(
       ${countSourceFilterCTE}
     )
     SELECT COUNT(*) as count FROM scored
-    WHERE vector_score >= ? OR fts_tokens @@ plainto_tsquery('portuguese', ?)
+    WHERE vector_score >= ? OR fts_tokens @@ plainto_tsquery('portuguese_unaccent', ?)
   `, countParams);
 
   const total = Number(totalResult.rows[0]?.count) || 0;

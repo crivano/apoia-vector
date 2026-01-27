@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
           content,
           fts_tokens,
           (1 - (embedding <=> ?::vector)) as vector_score,
-          ts_rank_cd(fts_tokens, plainto_tsquery('portuguese', ?)) as text_score,
+          ts_rank_cd(fts_tokens, plainto_tsquery('portuguese_unaccent', ?)) as text_score,
           ROW_NUMBER() OVER (ORDER BY embedding <=> ?::vector) as vector_rank
         FROM vector_items
       )
