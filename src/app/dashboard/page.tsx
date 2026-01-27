@@ -7,6 +7,7 @@ import type { DataSource } from "@/types";
 export default function Dashboard() {
   const [sources, setSources] = useState<DataSource[]>([]);
   const [stats, setStats] = useState({ totalSources: 0, totalItems: 0 });
+  const [usage, setUsage] = useState<{ used: number; limit: number; remaining: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
 
@@ -16,9 +17,10 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const [sourcesRes, statsRes] = await Promise.all([
+      const [sourcesRes, statsRes, usageRes] = await Promise.all([
         fetch("/api/sources"),
         fetch("/api/stats"),
+        fetch("/api/usage"),
       ]);
       
       if (sourcesRes.ok) {
@@ -29,6 +31,11 @@ export default function Dashboard() {
       if (statsRes.ok) {
         const data = await statsRes.json();
         setStats(data);
+      }
+
+      if (usageRes.ok) {
+        const data = await usageRes.json();
+        setUsage(data.usage);
       }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
@@ -93,7 +100,7 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       <div className="row mb-4">
-        <div className="col-md-6">
+        <div className="col-md-4">
           <div className="card bg-primary text-white">
             <div className="card-body">
               <h5 className="card-title">Fontes Configuradas</h5>
@@ -101,11 +108,33 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <div className="col-md-6">
+        <div className="col-md-4">
           <div className="card bg-success text-white">
             <div className="card-body">
               <h5 className="card-title">Itens Indexados</h5>
               <p className="display-6 mb-0">{stats.totalItems}</p>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className={`card ${usage && usage.limit > 0 && usage.remaining < usage.limit * 0.1 ? "bg-warning" : "bg-info"} text-white`}>
+            <div className="card-body">
+              <h5 className="card-title">Embeddings Hoje</h5>
+              {usage ? (
+                <>
+                  <p className="display-6 mb-1">{usage.used.toLocaleString()}</p>
+                  {usage.limit > 0 && (
+                    <small className="opacity-75">
+                      Limite: {usage.limit.toLocaleString()} | Restante: {usage.remaining.toLocaleString()}
+                    </small>
+                  )}
+                  {usage.limit === 0 && (
+                    <small className="opacity-75">Ilimitado</small>
+                  )}
+                </>
+              ) : (
+                <p className="mb-0">Carregando...</p>
+              )}
             </div>
           </div>
         </div>
