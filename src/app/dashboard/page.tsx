@@ -8,11 +8,31 @@ export default function Dashboard() {
   const [sources, setSources] = useState<DataSource[]>([]);
   const [stats, setStats] = useState({ totalSources: 0, totalItems: 0 });
   const [usage, setUsage] = useState<{ used: number; limit: number; remaining: number } | null>(null);
+  const [syncProgress, setSyncProgress] = useState<{
+    id: string;
+    status: string;
+    progress: number;
+    totalChunks: number;
+    completedChunks: number;
+    failedChunks: number;
+    totalItemsAdded: number;
+    totalItemsUpdated: number;
+    totalItemsDeleted: number;
+    createdAt: string;
+    completedAt: string | null;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
+    
+    // Poll sync progress every 3 seconds
+    const interval = setInterval(() => {
+      fetchSyncProgress();
+    }, 3000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const fetchData = async () => {
@@ -37,10 +57,25 @@ export default function Dashboard() {
         const data = await usageRes.json();
         setUsage(data.usage);
       }
+      
+      // Also fetch sync progress
+      await fetchSyncProgress();
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSyncProgress = async () => {
+    try {
+      const res = await fetch("/api/sync-progress");
+      if (res.ok) {
+        const data = await res.json();
+        setSyncProgress(data.session);
+      }
+    } catch (error) {
+      // Silently fail - sync progress is optional
     }
   };
 
@@ -139,6 +174,52 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Sync Progress Card */}
+      {syncProgress && syncProgress.status === "running" && (
+        <div className="alert alert-info mb-4">
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <h6 className="mb-0">
+              <i className="bi bi-arrow-repeat me-2"></i>
+              Sincronização em Andamento
+            </h6>
+            <span className="badge bg-primary">{syncProgress.progress}%</span>
+          </div>
+          <div className="progress mb-2" style={{ height: "8px" }}>
+            <div
+              className="progress-bar progress-bar-striped progress-bar-animated"
+              role="progressbar"
+              style={{ width: `${syncProgress.progress}%` }}
+              aria-valuenow={syncProgress.progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            />
+          </div>
+          <small className="text-muted">
+            {syncProgress.completedChunks} de {syncProgress.totalChunks} páginas processadas
+            {syncProgress.failedChunks > 0 && (
+              <span className="text-danger ms-2">
+                • {syncProgress.failedChunks} falhas
+              </span>
+            )}
+            {syncProgress.totalItemsAdded > 0 && (
+              <span className="text-success ms-2">
+                • {syncProgress.totalItemsAdded} novos
+              </span>
+            )}
+            {syncProgress.totalItemsUpdated > 0 && (
+              <span className="text-warning ms-2">
+                • {syncProgress.totalItemsUpdated} atualizados
+              </span>
+            )}
+            {syncProgress.totalItemsDeleted > 0 && (
+              <span className="text-danger ms-2">
+                • {syncProgress.totalItemsDeleted} removidos
+              </span>
+            )}
+          </small>
+        </div>
+      )}
 
       {/* Sources List */}
       <div className="card">
