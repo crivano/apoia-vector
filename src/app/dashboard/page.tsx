@@ -82,11 +82,12 @@ export default function Dashboard() {
   const syncSource = async (sourceId: string) => {
     setSyncing(sourceId);
     try {
-      const res = await fetch(`/api/sources/${sourceId}/sync`, { method: "POST" });
+      const res = await fetch(`/api/sources/${sourceId}/sync-chunked`, { method: "POST" });
       if (res.ok) {
-        const data = await res.json();
-        alert(`Sincronização concluída!\nAdicionados: ${data.result.added}\nAtualizados: ${data.result.updated}\nRemovidos: ${data.result.deleted}`);
+        // Refresh data immediately to start showing progress
         fetchData();
+      } else {
+        alert("Erro ao iniciar sincronização");
       }
     } catch (error) {
       console.error("Erro ao sincronizar:", error);
@@ -142,43 +143,42 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="row mb-4">
-        <div className="col-md-4">
-          <div className="card bg-primary text-white">
+      <div className="row row-cols-1 row-cols-md-3 g-4 mb-4">
+        <div className="col">
+          <div className="card bg-primary text-white h-100">
             <div className="card-body">
               <h5 className="card-title">Fontes Configuradas</h5>
               <p className="display-6 mb-0">{stats.totalSources}</p>
             </div>
           </div>
         </div>
-        <div className="col-md-4">
-          <div className="card bg-success text-white">
+        <div className="col">
+          <div className="card bg-success text-white h-100">
             <div className="card-body">
               <h5 className="card-title">Itens Indexados</h5>
               <p className="display-6 mb-0">{stats.totalItems}</p>
             </div>
           </div>
         </div>
-        <div className="col-md-4">
-          <div className={`card ${usage && usage.limit > 0 && usage.remaining < usage.limit * 0.1 ? "bg-warning" : "bg-info"} text-white`}>
+        <div className="col">
+          <div className={`card h-100 ${usage && usage.limit > 0 && usage.remaining < usage.limit * 0.1 ? "bg-warning" : "bg-info"} text-white`}>
             <div className="card-body">
               <h5 className="card-title">Embeddings Hoje</h5>
               {usage ? (
-                <>
-                  <p className="display-6 mb-1">{usage.used.toLocaleString()}</p>
-                  {usage.limit > 0 && (
-                    <small className="opacity-75">
-                      Limite: {usage.limit.toLocaleString()} | Restante: {usage.remaining.toLocaleString()}
-                    </small>
-                  )}
-                  {usage.limit === 0 && (
-                    <small className="opacity-75">Ilimitado</small>
-                  )}
-                </>
+                <p className="display-6 mb-0">{usage.used.toLocaleString()}</p>
               ) : (
-                <p className="mb-0">Carregando...</p>
+                <p className="display-6 mb-0">...</p>
               )}
             </div>
+            {usage && (
+              <div className="card-footer bg-transparent border-white border-opacity-25">
+                {usage.limit > 0 ? (
+                  <small>Limite: {usage.limit.toLocaleString()} | Restante: {usage.remaining.toLocaleString()}</small>
+                ) : (
+                  <small>Ilimitado</small>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

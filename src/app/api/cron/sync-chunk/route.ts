@@ -93,8 +93,8 @@ export async function GET(request: NextRequest) {
           .where("id", queueItem.sync_session_id)
           .increment("total_items_deleted", deletedCount);
         
-        // Update source metadata
-        await updateSourceMetadata(queueItem.source_id);
+        // Update metadata for ALL sources in this session
+        await updateAllSourcesMetadata(queueItem.sync_session_id);
         
         return NextResponse.json({
           message: "Chunk processed - session complete",
@@ -188,4 +188,22 @@ async function updateSourceMetadata(sourceId: string): Promise<void> {
       last_error: null,
       item_count: itemCount,
     });
+}
+
+/**
+ * Update metadata for all sources in a sync session
+ */
+async function updateAllSourcesMetadata(sessionId: string): Promise<void> {
+  const db = getDb();
+  
+  // Get all unique sources from this session
+  const sources = await db("sync_queue")
+    .where("sync_session_id", sessionId)
+    .distinct("source_id")
+    .select("source_id");
+  
+  // Update each source
+  for (const { source_id } of sources) {
+    await updateSourceMetadata(source_id);
+  }
 }
