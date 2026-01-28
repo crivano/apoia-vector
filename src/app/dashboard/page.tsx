@@ -156,7 +156,7 @@ export default function Dashboard() {
           <div className="card bg-success text-white h-100">
             <div className="card-body">
               <h5 className="card-title">Itens Indexados</h5>
-              <p className="display-6 mb-0">{stats.totalItems}</p>
+              <p className="display-6 mb-0">{stats.totalItems?.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function Dashboard() {
             <div className="card-body">
               <h5 className="card-title">Embeddings Hoje</h5>
               {usage ? (
-                <p className="display-6 mb-0">{usage.used.toLocaleString()}</p>
+                <p className="display-6 mb-0">{usage.used?.toLocaleString()}</p>
               ) : (
                 <p className="display-6 mb-0">...</p>
               )}
