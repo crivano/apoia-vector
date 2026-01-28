@@ -125,11 +125,19 @@ export default function Dashboard() {
   return (
     <div>
       <div className="row mb-4">
-        <div className="col-12">
-          <h1 className="display-5 fw-bold">Apoia-Vector</h1>
-          <p className="lead text-muted">
-            Sistema de indexação vetorial de fontes de dados REST
-          </p>
+        <div className="col-12 d-flex justify-content-between align-items-center">
+          <div>
+            <h1 className="display-5 fw-bold">Apoia-Vector</h1>
+            <p className="lead text-muted mb-0">
+              Sistema de indexação vetorial de fontes de dados REST
+            </p>
+          </div>
+          <div>
+            <Link href="/api-docs" className="btn btn-outline-secondary" target="_blank">
+              <i className="bi bi-file-text me-2"></i>
+              API Docs
+            </Link>
+          </div>
         </div>
       </div>
 
