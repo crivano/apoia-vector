@@ -125,7 +125,7 @@ async function buildFullTextQuery(
   let searchQuery = db("vector_items")
     .select(
       "vector_items.*",
-      db.raw("ts_rank_cd(fts_tokens, plainto_tsquery('portuguese_unaccent', ?)) as text_score", [query])
+      db.raw("LEAST(ts_rank(fts_tokens, plainto_tsquery('portuguese_unaccent', ?), 1) * 10, 1.0) as text_score", [query])
     )
     .whereRaw("fts_tokens @@ plainto_tsquery('portuguese_unaccent', ?)", [query])
     .orderByRaw("text_score DESC");
@@ -242,7 +242,7 @@ async function buildHybridQuery(
       SELECT 
         *,
         (1 - (embedding <=> ?::vector)) as vector_score,
-        LEAST(COALESCE(ts_rank_cd(fts_tokens, plainto_tsquery('portuguese_unaccent', ?)), 0) * 10, 1.0) as text_score
+        LEAST(COALESCE(ts_rank(fts_tokens, plainto_tsquery('portuguese_unaccent', ?), 1), 0) * 10, 1.0) as text_score
       FROM vector_items
       ${sourceFilterCTE}
     )
