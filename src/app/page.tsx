@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import nunjucks from "nunjucks";
 import type { DataSource, SearchResponse, SearchResult, SearchMode } from "@/types";
 
 export default function Home() {
@@ -94,33 +95,19 @@ export default function Home() {
       const template = result.source.displayTemplate;
       const data = result.item.transformedData || result.item.originalData;
       
-      // Simple template engine: replace {{$.field}} with values from data
-      let rendered = template;
-      const matches = template.match(/\{\{\$\.[^}]+\}\}/g);
-      
-      if (matches) {
-        matches.forEach((match) => {
-          // Extract path: {{$.field.subfield}} -> field.subfield
-          const path = match.slice(4, -2); // Remove {{$. and }}
-          const value = getNestedValue(data, path);
-          rendered = rendered.replace(match, value !== undefined ? String(value) : "");
-        });
+      try {
+        // Use Nunjucks to render the template
+        // Configure Nunjucks to not auto-escape HTML (since we want to preserve formatting)
+        nunjucks.configure({ autoescape: false });
+        return nunjucks.renderString(template, data);
+      } catch (error) {
+        console.error("Error rendering template:", error);
+        return result.item.content;
       }
-      
-      return rendered;
     }
     
     // Default: just return the plain content
     return result.item.content;
-  };
-
-  const getNestedValue = (obj: Record<string, unknown>, path: string): unknown => {
-    return path.split(".").reduce((current: unknown, key: string) => {
-      if (current && typeof current === "object" && key in current) {
-        return (current as Record<string, unknown>)[key];
-      }
-      return undefined;
-    }, obj);
   };
 
   return (
