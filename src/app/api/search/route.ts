@@ -122,21 +122,32 @@ async function buildFullTextQuery(
   limit: number,
   offset: number
 ) {
+  // Build OR query for text search (any word matches instead of all words)
+  const orQueryStr = `(
+    SELECT to_tsquery('portuguese_unaccent', string_agg(lexeme, ' | '))
+    FROM unnest(to_tsvector('portuguese_unaccent', ?))
+  )`;
+  
   let searchQuery = db("vector_items")
     .select(
       "vector_items.*",
-      db.raw("LEAST(ts_rank(fts_tokens, plainto_tsquery('portuguese_unaccent', ?), 1) * 10, 1.0) as text_score", [query])
+      db.raw(`LEAST(ts_rank(fts_tokens, ${orQueryStr}, 1) * 10, 1.0) as text_score`, [query])
     )
-    .whereRaw("fts_tokens @@ plainto_tsquery('portuguese_unaccent', ?)", [query])
+    .whereRaw(`fts_tokens @@ ${orQueryStr}`, [query])
     .orderByRaw("text_score DESC");
 
   if (sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0) {
     searchQuery = searchQuery.whereIn("source_id", sourceIds);
   }
 
-  // Count query
+  // Count query with OR logic
+  const orQueryStrCount = `(
+    SELECT to_tsquery('portuguese_unaccent', string_agg(lexeme, ' | '))
+    FROM unnest(to_tsvector('portuguese_unaccent', ?))
+  )`;
+  
   let countQuery = db("vector_items")
-    .whereRaw("fts_tokens @@ plainto_tsquery('portuguese_unaccent', ?)", [query]);
+    .whereRaw(`fts_tokens @@ ${orQueryStrCount}`, [query]);
   
   if (sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0) {
     countQuery = countQuery.whereIn("source_id", sourceIds);
@@ -225,42 +236,48 @@ async function buildHybridQuery(
   const embeddingStr = `[${queryEmbedding.join(",")}]`;
   const hasSourceFilter = sourceIds && Array.isArray(sourceIds) && sourceIds.length > 0;
 
-  // Build params for CTE approach
-  const params: (string | number)[] = [embeddingStr, query];
+  // Build params for query execution
+  const queryParams: (string | number)[] = [query, embeddingStr];
   
   let sourceFilterCTE = "";
   if (hasSourceFilter) {
-    sourceFilterCTE = `WHERE source_id IN (${sourceIds!.map(() => "?").join(",")})`;
-    params.push(...sourceIds!);
+    sourceFilterCTE = `WHERE v.source_id IN (${sourceIds!.map(() => "?").join(",")})`;
+    queryParams.push(...sourceIds!);
   }
   
-  params.push(vectorWeight, textWeight, threshold, query, limit, offset);
+  queryParams.push(vectorWeight, textWeight, threshold, limit, offset);
 
   // Use CTE for consistent scores - calculate once, use everywhere
+  // OR query allows matching any word instead of requiring all words
   const results = await db.raw(`
-    WITH scored AS (
+    WITH or_query AS (
+      SELECT to_tsquery('portuguese_unaccent', string_agg(lexeme, ' | ')) as tsq
+      FROM unnest(to_tsvector('portuguese_unaccent', ?))
+    ),
+    scored AS (
       SELECT 
-        *,
-        (1 - (embedding <=> ?::vector)) as vector_score,
-        LEAST(COALESCE(ts_rank(fts_tokens, plainto_tsquery('portuguese_unaccent', ?), 1), 0) * 10, 1.0) as text_score
-      FROM vector_items
+        v.*,
+        (1 - (v.embedding <=> ?::vector)) as vector_score,
+        LEAST(COALESCE(ts_rank(v.fts_tokens, oq.tsq, 1), 0) * 10, 1.0) as text_score
+      FROM vector_items v
+      CROSS JOIN or_query oq
       ${sourceFilterCTE}
     )
     SELECT 
       *,
       (vector_score * ?) + (text_score * ?) as combined_score
     FROM scored
-    WHERE vector_score >= ? OR fts_tokens @@ plainto_tsquery('portuguese_unaccent', ?)
+    WHERE vector_score >= ? OR fts_tokens @@ (SELECT tsq FROM or_query)
     ORDER BY (vector_score * ${vectorWeight}) + (text_score * ${textWeight}) DESC
     LIMIT ? OFFSET ?
-  `, params);
+  `, queryParams);
 
   // Count query with same CTE approach
-  const countParams: (string | number)[] = [embeddingStr];
+  const countParams: (string | number)[] = [query, embeddingStr];
   if (hasSourceFilter) {
     countParams.push(...sourceIds!);
   }
-  countParams.push(threshold, query);
+  countParams.push(threshold);
 
   let countSourceFilterCTE = "";
   if (hasSourceFilter) {
@@ -268,7 +285,11 @@ async function buildHybridQuery(
   }
 
   const totalResult = await db.raw(`
-    WITH scored AS (
+    WITH or_query AS (
+      SELECT to_tsquery('portuguese_unaccent', string_agg(lexeme, ' | ')) as tsq
+      FROM unnest(to_tsvector('portuguese_unaccent', ?))
+    ),
+    scored AS (
       SELECT 
         id,
         (1 - (embedding <=> ?::vector)) as vector_score,
@@ -277,7 +298,7 @@ async function buildHybridQuery(
       ${countSourceFilterCTE}
     )
     SELECT COUNT(*) as count FROM scored
-    WHERE vector_score >= ? OR fts_tokens @@ plainto_tsquery('portuguese_unaccent', ?)
+    WHERE vector_score >= ? OR fts_tokens @@ (SELECT tsq FROM or_query)
   `, countParams);
 
   const total = Number(totalResult.rows[0]?.count) || 0;

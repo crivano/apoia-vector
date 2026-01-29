@@ -1,10 +1,14 @@
-# Normalização de Scores de Busca Textual (FTS)
+# Normalização e Operadores de Busca Textual (FTS)
 
 ## Problema Identificado
 
-A busca textual (Full-Text Search) estava retornando scores muito baixos (frequentemente 0-5%), mesmo quando havia correspondências claras de palavras entre a query e os documentos.
+A busca textual (Full-Text Search) estava retornando scores muito baixos (frequentemente 0-5%), mesmo quando havia correspondências claras de palavras entre a query e os documentos. Além disso, o comportamento AND padrão excluía documentos que continham apenas algumas das palavras buscadas.
 
 ### Diagnóstico
+
+Dois problemas principais foram identificados:
+
+#### 1. Scores Muito Baixos
 
 O PostgreSQL's `ts_rank` e `ts_rank_cd` retornam valores naturalmente muito pequenos:
 
@@ -17,6 +21,25 @@ O PostgreSQL's `ts_rank` e `ts_rank_cd` retornam valores naturalmente muito pequ
 ts_rank(fts_tokens, plainto_tsquery('portuguese_unaccent', 'casamento união'), 1)
 -- Retorna: 0.0325 (3.25%)
 ```
+
+#### 2. Operador AND Muito Restritivo
+
+Por padrão, `plainto_tsquery` junta palavras com operador AND (&):
+
+```sql
+plainto_tsquery('portuguese_unaccent', 'previdência tributário')
+-- Gera: 'previdenci' & 'tributari'
+-- Resultado: Apenas documentos com AMBAS as palavras (muito restritivo)
+```
+
+**Impacto:**
+Duas melhorias foram aplicadas:
+
+### 1. Normalização de Score (Multiplicador x10)
+
+Aplicamos uma normalização multiplicativa ao score de texto para trazê-lo a uma escala comparável:
+
+**Fórmula:**48 documentos** que contêm pelo menos uma das palavras
 
 ### Comparação com Scores Vetoriais
 
@@ -38,22 +61,60 @@ LEAST(ts_rank(fts_tokens, plainto_tsquery('portuguese_unaccent', query), 1) * 10
 ```
 
 **Componentes:**
-- `ts_rank(..., 1)`: Usa normalização de comprimento (normalization=1)
-- `* 10`: Multiplica por 10 para amplificar o score
-- `LEAST(..., 1.0)`: Limita o máximo a 1.0 (100%)
+- `t2. Operador OR em Vez de AND
 
-### Resultados Após Normalização
+Substituímos `plainto_tsquery` por uma query construída dinamicamente com operador OR:
 
-Query: "casamento união"
-- **Antes**: 3.25% → **Depois**: 32.5%
+**Transformação:**
+```sql
+-- ANTES (AND - muito restritivo):
+plainto_tsquery('portuguese_unaccent', 'previdência tributário')
+-- Gera: 'previdenci' & 'tributari'
 
-Query: "direito consumidor"
-- **Antes**: 4.24% → **Depois**: 42.4%
+-- DEPOIS (OR - mais inclusivo):
+(
+  SELECT to_tsquery('portuguese_unaccent', string_agg(lexeme, ' | '))
+  FROM unnest(to_tsvector('portuguese_unaccent', 'previdência tributário'))
+)
+-- Gera: 'previdenci' | 'tributari'
+```
 
-Query: "processo civil"
-- **Antes**: 2.60% → **Depois**: 26.0%
+**Benefícios:**
+- ✅ Retorna documentos que contêm **qualquer** palavra da query
+// Build OR query for text search
+const orQueryStr = `(
+  SELECT to_tsquery('portuguese_unaccent', string_agg(lexeme, ' | '))
+  FROM unnest(to_tsvector('portuguese_unaccent', ?))
+)`;
 
-## Implementação
+db("vector_items")
+  .select(
+    "vector_items.*",
+    db.raw(`LEAST(ts_rank(fts_tokens, ${orQueryStr}, 1) * 10, 1.0) as text_score`, [query])
+  )
+  .whereRaw(`fts_tokens @@ ${orQueryStr}`, [query])
+```
+
+### Busca Híbrida (modo `hybrid`)
+
+```sql
+WITH or_query AS (
+  SELECT to_tsquery('portuguese_unaccent', string_agg(lexeme, ' | ')) as tsq
+  FROM unnest(to_tsvector('portuguese_unaccent', ?))
+),
+scored AS (
+  SELECT 
+    v.*,
+    (1 - (v.embedding <=> ?::vector)) as vector_score,
+    LEAST(COALESCE(ts_rank(v.fts_tokens, oq.tsq, 1), 0) * 10, 1.0) as text_score
+  FROM vector_items v
+  CROSS JOIN or_query oq
+)
+SELECT 
+  *,
+  (vector_score * ?) + (text_score * ?) as combined_score
+FROM scored
+WHERE vector_score >= ? OR fts_tokens @@ (SELECT tsq FROM or_query
 
 ### Busca Full-Text (modo `fulltext`)
 
@@ -116,16 +177,37 @@ O componente de texto agora contribui de forma significativa para o ranking fina
 
 O sistema usa a configuração `portuguese_unaccent` que:
 
-1. Remove acentos (união → unia)
-2. Aplica stemming em português (casamento → casament)
-3. Remove stopwords (de, para, com, etc.)
+Três scripts foram criados para validar as melhorias:
 
-Isso melhora a correspondência de textos com variações ortográficas comuns.
+1. `test-fts-scores.ts`: Testa valores brutos do FTS
+2. `test-fts-multipliers.ts`: Compara diferentes multiplicadores
+3. `test-fts-or.ts`: Demonstra diferença entre AND e OR
 
-## Referências
+Execute com:
+```bash
+npx tsx test-fts-scores.ts
+npx tsx test-fts-multipliers.ts
+npx tsx test-fts-or.ts
+```
 
-- [PostgreSQL Text Search Functions](https://www.postgresql.org/docs/current/textsearch-controls.html)
-- [ts_rank vs ts_rank_cd](https://www.postgresql.org/docs/current/textsearch-controls.html#TEXTSEARCH-RANKING)
+## Exemplo de Uso
+
+Query: "previdência tributário"
+
+**Antes (AND + normalização fraca):**
+- Resultados: 1 documento
+- Score máximo: ~3%
+- Apenas documentos com ambas as palavras
+
+**Depois (OR + normalização x10):**
+- Resultados: 149 documentos
+- Score máximo: ~11% (múltiplas palavras) 
+- Documentos com qualquer palavra
+
+**Impacto:** 
+- ✅ +148 documentos relevantes recuperados
+- ✅ Scores 3-4x maiores e mais interpretáveis
+- ✅ Busca mais útil e alinhada com expectativasts_rank vs ts_rank_cd](https://www.postgresql.org/docs/current/textsearch-controls.html#TEXTSEARCH-RANKING)
 - [Normalization Parameter](https://www.postgresql.org/docs/current/textsearch-controls.html#TEXTSEARCH-RANKING)
 
 ## Scripts de Teste
