@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
+import { generateSlug, isValidSlug } from "@/lib/slug";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -33,7 +34,51 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const db = getDb();
 
-    const updates = {
+    // Handle slug update
+    let slug = body.slug;
+    if (slug) {
+      // Validate slug format
+      if (!isValidSlug(slug)) {
+        return NextResponse.json(
+          { error: "Invalid slug format. Use lowercase letters, numbers, and hyphens only." },
+          { status: 400 }
+        );
+      }
+      
+      // Check if slug is taken by another source
+      const existingSlug = await db("data_sources")
+        .where("slug", slug)
+        .whereNot("id", id)
+        .first();
+      
+      if (existingSlug) {
+        return NextResponse.json(
+          { error: "Slug already in use by another source" },
+          { status: 409 }
+        );
+      }
+    } else if (body.name) {
+      // Generate new slug from updated name
+      slug = generateSlug(body.name);
+      
+      // Ensure uniqueness
+      const existingSlug = await db("data_sources")
+        .where("slug", slug)
+        .whereNot("id", id)
+        .first();
+      
+      if (existingSlug) {
+        let counter = 2;
+        let uniqueSlug = `${slug}-${counter}`;
+        while (await db("data_sources").where("slug", uniqueSlug).whereNot("id", id).first()) {
+          counter++;
+          uniqueSlug = `${slug}-${counter}`;
+        }
+        slug = uniqueSlug;
+      }
+    }
+
+    const updates: Record<string, unknown> = {
       name: body.name,
       description: body.description || null,
       endpoint: body.endpoint,
@@ -52,6 +97,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       is_active: body.isActive !== false,
       updated_at: new Date(),
     };
+
+    // Add slug to updates if it was changed
+    if (slug) {
+      updates.slug = slug;
+    }
 
     await db("data_sources").where("id", id).update(updates);
 
@@ -91,6 +141,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
 function transformSource(source: Record<string, unknown>) {
   return {
     id: source.id,
+    slug: source.slug,
     name: source.name,
     description: source.description,
     endpoint: source.endpoint,

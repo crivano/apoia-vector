@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
+import { generateSlug, isValidSlug } from "@/lib/slug";
 
 // GET /api/sources - List all sources
 export async function GET() {
@@ -29,8 +30,33 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const db = getDb();
 
+    // Generate or validate slug
+    let slug = body.slug || generateSlug(body.name);
+    
+    // Validate slug format
+    if (!isValidSlug(slug)) {
+      return NextResponse.json(
+        { error: "Invalid slug format. Use lowercase letters, numbers, and hyphens only." },
+        { status: 400 }
+      );
+    }
+
+    // Check if slug already exists
+    const existingSlug = await db("data_sources").where("slug", slug).first();
+    if (existingSlug) {
+      // Generate unique slug with numeric suffix
+      let counter = 2;
+      let uniqueSlug = `${slug}-${counter}`;
+      while (await db("data_sources").where("slug", uniqueSlug).first()) {
+        counter++;
+        uniqueSlug = `${slug}-${counter}`;
+      }
+      slug = uniqueSlug;
+    }
+
     const newSource = {
       id: uuidv4(),
+      slug: slug,
       name: body.name,
       description: body.description || null,
       endpoint: body.endpoint,
@@ -70,6 +96,7 @@ export async function POST(request: NextRequest) {
 function transformSource(source: Record<string, unknown>) {
   return {
     id: source.id,
+    slug: source.slug,
     name: source.name,
     description: source.description,
     endpoint: source.endpoint,

@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { 
       query, 
-      sourceIds, 
+      sourceSlugs, 
       limit = 10, 
       offset = 0, 
       threshold = 0.3,
@@ -26,6 +26,23 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDb();
+    
+    // Convert sourceSlugs to sourceIds if provided
+    let sourceIds: string[] | undefined;
+    if (sourceSlugs && Array.isArray(sourceSlugs) && sourceSlugs.length > 0) {
+      const sources = await db("data_sources")
+        .whereIn("slug", sourceSlugs)
+        .select("id");
+      sourceIds = sources.map(s => s.id);
+      
+      if (sourceIds.length === 0) {
+        return NextResponse.json(
+          { error: "No sources found with the provided slugs" },
+          { status: 404 }
+        );
+      }
+    }
+    
     const textWeight = 1 - vectorWeight;
 
     let results: Record<string, unknown>[];
@@ -309,6 +326,7 @@ async function buildHybridQuery(
 function transformSource(source: Record<string, unknown>) {
   return {
     id: String(source.id),
+    slug: String(source.slug),
     name: String(source.name),
     description: source.description ? String(source.description) : undefined,
     endpoint: String(source.endpoint),

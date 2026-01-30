@@ -13,6 +13,7 @@ interface SourceFormProps {
 export default function SourceForm({ source, onSubmit, saving }: SourceFormProps) {
   const [formData, setFormData] = useState({
     name: source?.name || "",
+    slug: source?.slug || "",
     description: source?.description || "",
     endpoint: source?.endpoint || "",
     method: source?.method || "GET",
@@ -72,6 +73,7 @@ export default function SourceForm({ source, onSubmit, saving }: SourceFormProps
 
       await onSubmit({
         name: formData.name,
+        slug: formData.slug || undefined,
         description: formData.description || undefined,
         endpoint: formData.endpoint,
         method: formData.method as "GET" | "POST",
@@ -179,6 +181,21 @@ export default function SourceForm({ source, onSubmit, saving }: SourceFormProps
                   />
                 </div>
                 <div className="col-md-6">
+                  <label className="form-label">Slug</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="slug"
+                    value={formData.slug}
+                    onChange={handleChange}
+                    pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    placeholder="Ex: temas-stf (gerado automaticamente se não informado)"
+                  />
+                  <small className="text-muted">
+                    Identificador único em lowercase com hífens. Deixe em branco para gerar automaticamente.
+                  </small>
+                </div>
+                <div className="col-12">
                   <label className="form-label">Descrição</label>
                   <input
                     type="text"

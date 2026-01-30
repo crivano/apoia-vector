@@ -1,5 +1,6 @@
 export interface DataSource {
   id: string;
+  slug: string;
   name: string;
   description?: string;
   endpoint: string;

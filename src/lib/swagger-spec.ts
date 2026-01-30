@@ -10,8 +10,8 @@ export const swaggerSpec = {
   },
   servers: [
     {
-      url: "http://localhost:3000",
-      description: "Desenvolvimento",
+      url: process.env.NEXTAUTH_URL || "http://localhost:3000",
+      description: process.env.NODE_ENV === "production" ? "Produção" : "Desenvolvimento",
     },
   ],
   tags: [
@@ -264,10 +264,11 @@ export const swaggerSpec = {
                     description: "Texto da busca",
                     example: "machine learning",
                   },
-                  sources: {
+                  sourceSlugs: {
                     type: "array",
-                    items: { type: "string", format: "uuid" },
-                    description: "IDs das fontes para filtrar (opcional)",
+                    items: { type: "string" },
+                    description: "Slugs das fontes para filtrar (opcional)",
+                    example: ["blog-posts", "documentation"],
                   },
                   limit: {
                     type: "integer",
@@ -501,6 +502,7 @@ export const swaggerSpec = {
         type: "object",
         properties: {
           id: { type: "string", format: "uuid" },
+          slug: { type: "string", pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
           name: { type: "string" },
           endpoint: { type: "string", format: "uri" },
           method: { type: "string", enum: ["GET", "POST"] },
@@ -527,6 +529,11 @@ export const swaggerSpec = {
         type: "object",
         required: ["name", "endpoint", "method", "arrayPath", "idPath", "contentPath"],
         properties: {
+          slug: { 
+            type: "string", 
+            pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            description: "URL-friendly identifier (auto-generated from name if not provided)"
+          },
           name: { type: "string", minLength: 1 },
           endpoint: { type: "string", format: "uri" },
           method: { type: "string", enum: ["GET", "POST"] },
