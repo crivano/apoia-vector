@@ -23,7 +23,7 @@ export default function EditSourcePage({ params }: PageProps) {
 
   const fetchSource = async () => {
     try {
-      const res = await fetch(`/api/sources/${id}`);
+      const res = await fetch(`/api/v1/sources/${id}`);
       if (res.ok) {
         const data = await res.json();
         setSource(data.source);
@@ -43,7 +43,7 @@ export default function EditSourcePage({ params }: PageProps) {
     setError(null);
 
     try {
-      const res = await fetch(`/api/sources/${id}`, {
+      const res = await fetch(`/api/v1/sources/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

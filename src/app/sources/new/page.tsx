@@ -15,7 +15,7 @@ export default function NewSourcePage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/sources", {
+      const res = await fetch("/api/v1/sources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

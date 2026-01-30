@@ -11,10 +11,10 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/sources/:path*",
-    "/api/sources/:path*",
-    "/api/stats/:path*",
-    "/api/usage/:path*",
-    "/api/sync-progress/:path*",
-    "/api/debug/:path*",
+    "/api/v1/sources/:path*",
+    "/api/v1/stats/:path*",
+    "/api/v1/usage/:path*",
+    "/api/v1/sync-progress/:path*",
+    "/api/v1/debug/:path*",
   ],
 };

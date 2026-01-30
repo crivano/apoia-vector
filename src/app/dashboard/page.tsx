@@ -38,9 +38,9 @@ export default function Dashboard() {
   const fetchData = async () => {
     try {
       const [sourcesRes, statsRes, usageRes] = await Promise.all([
-        fetch("/api/sources"),
-        fetch("/api/stats"),
-        fetch("/api/usage"),
+        fetch("/api/v1/sources"),
+        fetch("/api/v1/stats"),
+        fetch("/api/v1/usage"),
       ]);
       
       if (sourcesRes.ok) {
@@ -69,7 +69,7 @@ export default function Dashboard() {
 
   const fetchSyncProgress = async () => {
     try {
-      const res = await fetch("/api/sync-progress");
+      const res = await fetch("/api/v1/sync-progress");
       if (res.ok) {
         const data = await res.json();
         setSyncProgress(data.session);
@@ -82,7 +82,7 @@ export default function Dashboard() {
   const syncSource = async (sourceId: string) => {
     setSyncing(sourceId);
     try {
-      const res = await fetch(`/api/sources/${sourceId}/sync-chunked`, { method: "POST" });
+      const res = await fetch(`/api/v1/sources/${sourceId}/sync-chunked`, { method: "POST" });
       if (res.ok) {
         // Refresh data immediately to start showing progress
         fetchData();
@@ -103,7 +103,7 @@ export default function Dashboard() {
     }
 
     try {
-      const res = await fetch(`/api/sources/${sourceId}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/sources/${sourceId}`, { method: "DELETE" });
       if (res.ok) {
         fetchData();
       }

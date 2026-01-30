@@ -3,7 +3,7 @@ import { createSyncSession, initializeSyncQueue } from "@/lib/sync-queue";
 
 // Vercel Cron Job endpoint - Start chunked sync
 // Configure in vercel.json:
-// { "crons": [{ "path": "/api/cron/sync-start", "schedule": "0 6 * * *" }] }
+// { "crons": [{ "path": "/api/v1/cron/sync-start", "schedule": "0 6 * * *" }] }
 
 export async function GET(request: NextRequest) {
   // Verify cron secret in production
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       ? `https://${process.env.VERCEL_URL}`
       : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     
-    const chunkUrl = `${baseUrl}/api/cron/sync-chunk`;
+    const chunkUrl = `${baseUrl}/api/v1/cron/sync-chunk`;
     
     // Fire and forget - don't wait for response
     fetch(chunkUrl, {

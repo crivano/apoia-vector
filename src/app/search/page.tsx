@@ -27,7 +27,7 @@ export default function SearchPage() {
 
   const fetchSources = async () => {
     try {
-      const res = await fetch("/api/sources");
+      const res = await fetch("/api/v1/sources");
       if (res.ok) {
         const data = await res.json();
         setSources(data.sources || []);
@@ -44,7 +44,7 @@ export default function SearchPage() {
     setSearched(true);
 
     try {
-      const res = await fetch("/api/search", {
+      const res = await fetch("/api/v1/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -150,7 +150,7 @@ async function triggerNextChunk(
     ? `https://${process.env.VERCEL_URL}`
     : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
   
-  const chunkUrl = `${baseUrl}/api/cron/sync-chunk`;
+  const chunkUrl = `${baseUrl}/api/v1/cron/sync-chunk`;
   
   // Fire and forget - don't wait for response
   fetch(chunkUrl, {

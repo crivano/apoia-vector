@@ -8,7 +8,7 @@ const SwaggerUI = dynamic(() => import("swagger-ui-react"), { ssr: false });
 export default function ApiDocs() {
   return (
     <div style={{ height: "100vh" }}>
-      <SwaggerUI url="/api/swagger.json" />
+      <SwaggerUI url="/api/v1/swagger.json" />
     </div>
   );
 }

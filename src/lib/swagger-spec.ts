@@ -33,7 +33,7 @@ export const swaggerSpec = {
     },
   ],
   paths: {
-    "/api/sources": {
+    "/api/v1/sources": {
       get: {
         tags: ["Sources"],
         summary: "Listar todas as fontes de dados",
@@ -95,7 +95,7 @@ export const swaggerSpec = {
         },
       },
     },
-    "/api/sources/{id}": {
+    "/api/v1/sources/{id}": {
       get: {
         tags: ["Sources"],
         summary: "Obter fonte específica",
@@ -191,7 +191,7 @@ export const swaggerSpec = {
         },
       },
     },
-    "/api/sources/{id}/sync": {
+    "/api/v1/sources/{id}/sync": {
       post: {
         tags: ["Sync"],
         summary: "Sincronizar fonte específica",
@@ -246,7 +246,7 @@ export const swaggerSpec = {
         },
       },
     },
-    "/api/search": {
+    "/api/v1/search": {
       post: {
         tags: ["Search"],
         summary: "Busca semântica/híbrida",
@@ -329,7 +329,7 @@ export const swaggerSpec = {
         },
       },
     },
-    "/api/stats": {
+    "/api/v1/stats": {
       get: {
         tags: ["Stats"],
         summary: "Estatísticas gerais",
@@ -352,7 +352,7 @@ export const swaggerSpec = {
         },
       },
     },
-    "/api/usage": {
+    "/api/v1/usage": {
       get: {
         tags: ["Stats"],
         summary: "Uso de embeddings",
@@ -382,7 +382,7 @@ export const swaggerSpec = {
         },
       },
     },
-    "/api/sync-progress": {
+    "/api/v1/sync-progress": {
       get: {
         tags: ["Sync"],
         summary: "Progresso do sync chunked",
@@ -427,7 +427,7 @@ export const swaggerSpec = {
         },
       },
     },
-    "/api/cron/sync-start": {
+    "/api/v1/cron/sync-start": {
       get: {
         tags: ["Sync"],
         summary: "Iniciar sync chunked (Cron)",
@@ -456,7 +456,7 @@ export const swaggerSpec = {
         },
       },
     },
-    "/api/cron/sync-chunk": {
+    "/api/v1/cron/sync-chunk": {
       get: {
         tags: ["Sync"],
         summary: "Processar chunk (Cron)",

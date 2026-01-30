@@ -15,7 +15,7 @@ export default function SourcesPage() {
 
   const fetchSources = async () => {
     try {
-      const res = await fetch("/api/sources");
+      const res = await fetch("/api/v1/sources");
       if (res.ok) {
         const data = await res.json();
         setSources(data.sources || []);
@@ -30,7 +30,7 @@ export default function SourcesPage() {
   const syncSource = async (sourceId: string) => {
     setSyncing(sourceId);
     try {
-      const res = await fetch(`/api/sources/${sourceId}/sync`, { method: "POST" });
+      const res = await fetch(`/api/v1/sources/${sourceId}/sync`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         alert(`Sincronização concluída!\nAdicionados: ${data.result.added}\nAtualizados: ${data.result.updated}\nRemovidos: ${data.result.deleted}`);
@@ -50,7 +50,7 @@ export default function SourcesPage() {
     }
 
     try {
-      const res = await fetch(`/api/sources/${sourceId}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/sources/${sourceId}`, { method: "DELETE" });
       if (res.ok) {
         fetchSources();
       }

@@ -4,7 +4,7 @@ import { syncDataSource } from "@/lib/sync";
 
 // Vercel Cron Job endpoint
 // Configure in vercel.json:
-// { "crons": [{ "path": "/api/cron/sync", "schedule": "0 */6 * * *" }] }
+// { "crons": [{ "path": "/api/v1/cron/sync", "schedule": "0 */6 * * *" }] }
 
 export async function GET(request: NextRequest) {
   // Verify cron secret in production

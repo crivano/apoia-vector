@@ -29,7 +29,7 @@ export default function Home() {
 
   const fetchSources = async () => {
     try {
-      const res = await fetch("/api/sources");
+      const res = await fetch("/api/v1/sources");
       if (res.ok) {
         const data = await res.json();
         setSources(data.sources || []);
@@ -46,7 +46,7 @@ export default function Home() {
     setSearched(true);
 
     try {
-      const res = await fetch("/api/search", {
+      const res = await fetch("/api/v1/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
