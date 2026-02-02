@@ -14,6 +14,7 @@ export interface DataSource {
   idPath: string;
   contentPath: string;
   contentTemplate?: string; // Template for combining multiple fields
+  titleTemplate?: string; // Nunjucks template for generating item title
 
   // Display template for search results
   displayTemplate?: string; // HTML template for rendering search results
@@ -71,10 +72,12 @@ export interface SearchRequest {
 
 export interface SearchResult {
   item: VectorItem;
+  renderedTitle: string | null;
+  renderedDisplay: string | null;
   similarity: number;
   vectorScore?: number;
   textScore?: number;
-  source: Pick<DataSource, "id" | "name" | "description" | "endpoint" | "method" | "displayTemplate"> | null;
+  source: Pick<DataSource, "id" | "slug" | "name" | "description" | "endpoint" | "method" | "displayTemplate"> | null;
 }
 
 export interface SearchResponse {

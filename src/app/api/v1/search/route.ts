@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { generateEmbedding } from "@/lib/embeddings";
 import type { SearchResponse, SearchMode } from "@/types";
+import nunjucks from "nunjucks";
+
+// Configure nunjucks
+nunjucks.configure({ autoescape: false });
 
 // POST /api/search - Perform vector, fulltext, or hybrid search
 export async function POST(request: NextRequest) {
@@ -74,33 +78,59 @@ export async function POST(request: NextRequest) {
     const sources = sourceIdsFromResults.length > 0 
       ? await db("data_sources").whereIn("id", sourceIdsFromResults)
       : [];
-    const sourcesMap = new Map(sources.map((s: { id: string }) => [s.id, s]));
+    const sourcesMap = new Map(sources.map((s: Record<string, unknown>) => [s.id, s]));
 
-    // Format results
-    const formattedResults = results.map((item: Record<string, unknown>) => ({
-      item: {
-        id: String(item.id),
-        sourceId: String(item.source_id),
-        externalId: String(item.external_id),
-        content: String(item.content),
-        originalData: typeof item.original_data === "string" 
-          ? JSON.parse(item.original_data) 
-          : item.original_data,
-        transformedData: item.transformed_data 
-          ? (typeof item.transformed_data === "string" 
-            ? JSON.parse(item.transformed_data) 
-            : item.transformed_data)
-          : null,
-        createdAt: String(item.created_at),
-        updatedAt: String(item.updated_at),
-      },
-      similarity: Number(item.combined_score ?? item.vector_score ?? item.text_score ?? 0),
-      vectorScore: item.vector_score !== undefined ? Number(item.vector_score) : undefined,
-      textScore: item.text_score !== undefined ? Number(item.text_score) : undefined,
-      source: sourcesMap.get(item.source_id as string) 
-        ? transformSource(sourcesMap.get(item.source_id as string)!) 
-        : null,
-    }));
+    // Format results with rendered templates
+    const formattedResults = results.map((item: Record<string, unknown>) => {
+      const source = sourcesMap.get(item.source_id as string);
+      const originalData = typeof item.original_data === "string" 
+        ? JSON.parse(item.original_data) 
+        : item.original_data;
+      const transformedData = item.transformed_data 
+        ? (typeof item.transformed_data === "string" 
+          ? JSON.parse(item.transformed_data) 
+          : item.transformed_data)
+        : null;
+
+      // Render title template if available
+      let renderedTitle: string | null = null;
+      if (source?.title_template) {
+        try {
+          renderedTitle = nunjucks.renderString(String(source.title_template), originalData);
+        } catch (error) {
+          console.error("Error rendering title template:", error);
+        }
+      }
+
+      // Render display template if available
+      let renderedDisplay: string | null = null;
+      if (source?.display_template) {
+        try {
+          renderedDisplay = nunjucks.renderString(String(source.display_template), originalData);
+        } catch (error) {
+          console.error("Error rendering display template:", error);
+        }
+      }
+
+      return {
+        item: {
+          id: String(item.id),
+          sourceId: String(item.source_id),
+          externalId: String(item.external_id),
+          content: String(item.content),
+          originalData,
+          transformedData,
+          createdAt: String(item.created_at),
+          updatedAt: String(item.updated_at),
+        },
+        renderedTitle,
+        renderedDisplay,
+        similarity: Number(item.combined_score ?? item.vector_score ?? item.text_score ?? 0),
+        vectorScore: item.vector_score !== undefined ? Number(item.vector_score) : undefined,
+        textScore: item.text_score !== undefined ? Number(item.text_score) : undefined,
+        source: source ? transformSource(source) : null,
+      };
+    });
 
     const pageSize = limit;
     const page = Math.floor(offset / limit) + 1;

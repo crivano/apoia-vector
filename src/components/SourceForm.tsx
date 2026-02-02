@@ -24,6 +24,7 @@ export default function SourceForm({ source, onSubmit, saving }: SourceFormProps
     idPath: source?.idPath || "$.id",
     contentPath: source?.contentPath || "$.content",
     contentTemplate: source?.contentTemplate || "",
+    titleTemplate: source?.titleTemplate || "",
     displayTemplate: source?.displayTemplate || "",
     usePagination: !!source?.pagination,
     paginationType: source?.pagination?.type || "page",
@@ -84,6 +85,7 @@ export default function SourceForm({ source, onSubmit, saving }: SourceFormProps
         idPath: formData.idPath,
         contentPath: formData.contentPath,
         contentTemplate: formData.contentTemplate || undefined,
+        titleTemplate: formData.titleTemplate || undefined,
         displayTemplate: formData.displayTemplate || undefined,
         pagination,
         transformScript: formData.transformScript || undefined,
@@ -365,6 +367,20 @@ export default function SourceForm({ source, onSubmit, saving }: SourceFormProps
                   />
                   <div className="form-text">
                     Use {`{{$.campo}}`} para combinar múltiplos campos no conteúdo
+                  </div>
+                </div>
+                <div className="col-12">
+                  <label className="form-label">Template de Título (opcional)</label>
+                  <input
+                    type="text"
+                    className="form-control font-monospace"
+                    name="titleTemplate"
+                    value={formData.titleTemplate}
+                    onChange={handleChange}
+                    placeholder="Tema {{nr}} - {{titulo}}"
+                  />
+                  <div className="form-text">
+                    Template Nunjucks para gerar o título do item. Use {`{{campo}}`} para acessar campos do JSON
                   </div>
                 </div>
                 <div className="col-12">
