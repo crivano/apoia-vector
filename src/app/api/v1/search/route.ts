@@ -48,7 +48,7 @@ async function searchByExternalId(
     .limit(50); // Reasonable limit for ID searches
   
   if (sourceIds && sourceIds.length > 0) {
-    queryBuilder = queryBuilder.whereIn("v.data_source_id", sourceIds);
+    queryBuilder = queryBuilder.whereIn("v.source_id", sourceIds);
   }
   
   if (parsed.type === 'full') {
