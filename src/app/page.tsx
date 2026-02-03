@@ -94,7 +94,7 @@ export default function Home() {
     if (result.source?.displayTemplate) {
       const template = result.source.displayTemplate;
       const data = result.item.data;
-      
+
       try {
         // Use Nunjucks to render the template
         // Configure Nunjucks to not auto-escape HTML (since we want to preserve formatting)
@@ -105,7 +105,7 @@ export default function Home() {
         return result.item.content;
       }
     }
-    
+
     // Default: just return the plain content
     return result.item.content;
   };
@@ -113,8 +113,8 @@ export default function Home() {
   return (
     <div className="d-flex flex-column" style={{ minHeight: "80vh" }}>
       {/* Logo e Campo de Busca - Estilo Google */}
-      <div className={`d-flex flex-column align-items-center ${searched ? "mt-4" : ""}`} 
-           style={{ marginTop: searched ? undefined : "15vh" }}>
+      <div className={`d-flex flex-column align-items-center ${searched ? "mt-4" : ""}`}
+        style={{ marginTop: searched ? undefined : "15vh" }}>
         {!searched && (
           <div className="text-center mb-5">
             <h1 className="display-3 fw-normal mb-2">🔍 Apoia-Vector</h1>
@@ -169,7 +169,7 @@ export default function Home() {
 
           {/* Botões de Filtros Rápidos */}
           <div className="d-flex justify-content-center gap-2 mt-3">
-            <button 
+            <button
               className="btn btn-sm btn-outline-secondary rounded-pill"
               onClick={() => setShowFilters(!showFilters)}
             >
@@ -233,27 +233,26 @@ export default function Home() {
                   </div>
                 )}
               </div>
-                <div className="col-12 mt-3">
-                  <label className="form-label small fw-semibold">Fontes de Dados</label>
-                  <div className="d-flex flex-wrap gap-2">
-                    {sources.map((source) => (
-                      <button
-                        key={source.id}
-                        className={`btn btn-sm rounded-pill ${
-                          selectedSources.includes(source.id)
-                            ? "btn-primary"
-                            : "btn-outline-secondary"
+              <div className="col-12 mt-3">
+                <label className="form-label small fw-semibold">Fontes de Dados</label>
+                <div className="d-flex flex-wrap gap-2">
+                  {sources.map((source) => (
+                    <button
+                      key={source.id}
+                      className={`btn btn-sm rounded-pill ${selectedSources.includes(source.id)
+                        ? "btn-primary"
+                        : "btn-outline-secondary"
                         }`}
-                        onClick={() => toggleSource(source.id)}
-                      >
-                        {source.name}
-                      </button>
-                    ))}
-                    {sources.length === 0 && (
-                      <span className="text-muted small">Nenhuma fonte disponível</span>
-                    )}
-                  </div>
+                      onClick={() => toggleSource(source.id)}
+                    >
+                      {source.name}
+                    </button>
+                  ))}
+                  {sources.length === 0 && (
+                    <span className="text-muted small">Nenhuma fonte disponível</span>
+                  )}
                 </div>
+              </div>
 
             </div>
           )}
@@ -278,10 +277,10 @@ export default function Home() {
                       {(pagination.page - 1) * pagination.pageSize + index + 1}.
                     </span>
                     <div className="flex-grow-1">
-                      <div 
+                      <div
                         style={{ fontSize: "1.2em" }}
-                        dangerouslySetInnerHTML={{ 
-                          __html: renderContent(result) 
+                        dangerouslySetInnerHTML={{
+                          __html: renderContent(result)
                         }}
                         className="mb-2"
                       />
@@ -305,8 +304,8 @@ export default function Home() {
                           {searchMode === "hybrid" && (
                             <>
                               {result.vectorScore !== undefined && (
-                                <span 
-                                  className="badge border border-primary text-primary bg-transparent" 
+                                <span
+                                  className="badge border border-primary text-primary bg-transparent"
                                   title="Score Vetorial (similaridade semântica)"
                                   style={{ fontSize: "10px" }}
                                 >
@@ -314,7 +313,7 @@ export default function Home() {
                                 </span>
                               )}
                               {result.textScore !== undefined && (
-                                <span 
+                                <span
                                   className={`badge border ${result.textScore > 0 ? "border-warning text-warning" : "border-secondary text-secondary"} bg-transparent`}
                                   title="Score Texto (match de palavras)"
                                   style={{ fontSize: "10px" }}
@@ -324,12 +323,11 @@ export default function Home() {
                               )}
                             </>
                           )}
-                          <span 
-                            className={`badge border bg-transparent ${
-                              result.similarity >= 0.9 ? "border-success text-success" :
+                          <span
+                            className={`badge border bg-transparent ${result.similarity >= 0.9 ? "border-success text-success" :
                               result.similarity >= 0.8 ? "border-primary text-primary" :
-                              result.similarity >= 0.7 ? "border-warning text-warning" : "border-secondary text-secondary"
-                            }`}
+                                result.similarity >= 0.7 ? "border-warning text-warning" : "border-secondary text-secondary"
+                              }`}
                             title={searchMode === "hybrid" ? "Score Combinado" : "Score"}
                             style={{ fontSize: "10px" }}
                           >
@@ -341,11 +339,7 @@ export default function Home() {
                       {expandedItem === result.item.id && (
                         <div className="mt-3 p-3 bg-light rounded" style={{ fontSize: "12px" }}>
                           <pre className="mb-0" style={{ maxHeight: "300px", overflow: "auto" }}>
-                            {JSON.stringify(
-                              result.item.data,
-                              null,
-                              2
-                            )}
+                            {JSON.stringify(result.item.data, null, 2)}
                           </pre>
                         </div>
                       )}
