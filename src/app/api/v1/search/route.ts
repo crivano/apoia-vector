@@ -55,13 +55,15 @@ async function searchByExternalId(
     // Exact match on external_id
     queryBuilder = queryBuilder.whereRaw('v.external_id = ?', [parsed.pattern]);
   } else if (parsed.type === 'number') {
-    // Match any ID ending with the number
+    // Match any ID ending with the number (with delimiter before)
     queryBuilder = queryBuilder.whereRaw('v.external_id LIKE ?', [`%-${parsed.number}`]);
   } else if (parsed.type === 'compact') {
-    // Match pattern starting with prefix and containing the number
-    queryBuilder = queryBuilder
-      .whereRaw('v.external_id LIKE ?', [`${parsed.pattern}-%${parsed.number}`])
-      .orWhereRaw('v.external_id LIKE ?', [`${parsed.pattern}-%${parsed.number}-%`]);
+    // Match pattern: prefix-*-number (e.g., "stj14" matches "stj-rr-14" but not "stj-rr-114")
+    // Using negative lookahead pattern to ensure number is not followed by more digits
+    queryBuilder = queryBuilder.whereRaw(
+      "v.external_id ~ ?", 
+      [`^${parsed.pattern}-[a-z]+-${parsed.number}$`]
+    );
   }
   
   const results = await queryBuilder;
@@ -166,7 +168,7 @@ export async function POST(request: NextRequest) {
       let renderedTitle: string | null = null;
       if (source?.title_template) {
         try {
-          renderedTitle = nunjucks.renderString(String(source.title_template), originalData);
+          renderedTitle = nunjucks.renderString(String(source.title_template), transformedData || originalData);
         } catch (error) {
           console.error("Error rendering title template:", error);
         }
@@ -176,7 +178,7 @@ export async function POST(request: NextRequest) {
       let renderedDisplay: string | null = null;
       if (source?.display_template) {
         try {
-          renderedDisplay = nunjucks.renderString(String(source.display_template), originalData);
+          renderedDisplay = nunjucks.renderString(String(source.display_template), transformedData || originalData);
         } catch (error) {
           console.error("Error rendering display template:", error);
         }
@@ -188,8 +190,7 @@ export async function POST(request: NextRequest) {
           sourceId: String(item.source_id),
           externalId: String(item.external_id),
           content: String(item.content),
-          originalData,
-          transformedData,
+          data: transformedData || originalData,
           createdAt: String(item.created_at),
           updatedAt: String(item.updated_at),
         },

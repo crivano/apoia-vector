@@ -93,7 +93,7 @@ export default function Home() {
     // If source has a display template, use it
     if (result.source?.displayTemplate) {
       const template = result.source.displayTemplate;
-      const data = result.item.transformedData || result.item.originalData;
+      const data = result.item.data;
       
       try {
         // Use Nunjucks to render the template
@@ -342,7 +342,7 @@ export default function Home() {
                         <div className="mt-3 p-3 bg-light rounded" style={{ fontSize: "12px" }}>
                           <pre className="mb-0" style={{ maxHeight: "300px", overflow: "auto" }}>
                             {JSON.stringify(
-                              result.item.transformedData || result.item.originalData,
+                              result.item.data,
                               null,
                               2
                             )}

@@ -299,8 +299,8 @@ export default function SourceForm({ source, onSubmit, saving }: SourceFormProps
                     <details className="mt-2">
                       <summary>Ver resposta</summary>
                       <pre className="mt-2 mb-0 small">
-                        {JSON.stringify(testResult.data, null, 2).slice(0, 1000)}
-                        {JSON.stringify(testResult.data).length > 1000 && "..."}
+                        {JSON.stringify(testResult.data, null, 2).slice(0, 10000)}
+                        {JSON.stringify(testResult.data).length > 10000 && "..."}
                       </pre>
                     </details>
                   )}

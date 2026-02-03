@@ -52,8 +52,7 @@ export interface VectorItem {
   externalId: string;
   content: string;
   embedding?: number[];
-  originalData: Record<string, unknown>;
-  transformedData?: Record<string, unknown>;
+  data: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
