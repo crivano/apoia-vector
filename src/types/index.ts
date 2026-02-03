@@ -87,6 +87,7 @@ export interface SearchResponse {
   page: number;
   pageSize: number;
   totalPages: number;
+  searchMethod?: "id" | "vector" | "fulltext" | "hybrid";
 }
 
 export interface SyncResult {

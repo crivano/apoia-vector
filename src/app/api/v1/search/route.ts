@@ -7,6 +7,67 @@ import nunjucks from "nunjucks";
 // Configure nunjucks
 nunjucks.configure({ autoescape: false });
 
+// Helper function to detect ID patterns and extract components
+function parseIdQuery(query: string): { type: 'full' | 'number' | 'compact' | null, pattern?: string, number?: string } {
+  const trimmed = query.trim();
+  
+  // Full ID pattern: stf-rg-123, stj-rr-456, etc.
+  const fullIdMatch = trimmed.match(/^([a-z]+)-([a-z]+)-(\d+)$/i);
+  if (fullIdMatch) {
+    return { type: 'full', pattern: trimmed.toLowerCase() };
+  }
+  
+  // Just number: 123, 456
+  const numberMatch = trimmed.match(/^\d+$/);
+  if (numberMatch) {
+    return { type: 'number', number: trimmed };
+  }
+  
+  // Compact format: stf123, stj456
+  const compactMatch = trimmed.match(/^([a-z]+)(\d+)$/i);
+  if (compactMatch) {
+    return { type: 'compact', pattern: compactMatch[1].toLowerCase(), number: compactMatch[2] };
+  }
+  
+  return { type: null };
+}
+
+// Search by external_id patterns
+async function searchByExternalId(
+  db: ReturnType<typeof getDb>,
+  query: string,
+  sourceIds?: string[]
+) {
+  const parsed = parseIdQuery(query);
+  
+  if (!parsed.type) return null;
+  
+  let queryBuilder = db("vector_items as v")
+    .select("v.*")
+    .orderBy("v.updated_at", "desc")
+    .limit(50); // Reasonable limit for ID searches
+  
+  if (sourceIds && sourceIds.length > 0) {
+    queryBuilder = queryBuilder.whereIn("v.data_source_id", sourceIds);
+  }
+  
+  if (parsed.type === 'full') {
+    // Exact match on external_id
+    queryBuilder = queryBuilder.whereRaw('v.external_id = ?', [parsed.pattern]);
+  } else if (parsed.type === 'number') {
+    // Match any ID ending with the number
+    queryBuilder = queryBuilder.whereRaw('v.external_id LIKE ?', [`%-${parsed.number}`]);
+  } else if (parsed.type === 'compact') {
+    // Match pattern starting with prefix and containing the number
+    queryBuilder = queryBuilder
+      .whereRaw('v.external_id LIKE ?', [`${parsed.pattern}-%${parsed.number}`])
+      .orWhereRaw('v.external_id LIKE ?', [`${parsed.pattern}-%${parsed.number}-%`]);
+  }
+  
+  const results = await queryBuilder;
+  return results.length > 0 ? results : null;
+}
+
 // POST /api/search - Perform vector, fulltext, or hybrid search
 export async function POST(request: NextRequest) {
   try {
@@ -51,8 +112,17 @@ export async function POST(request: NextRequest) {
 
     let results: Record<string, unknown>[];
     let total: number;
+    let searchMethod: string = mode;
 
-    if (mode === "fulltext") {
+    // Try ID-based search first
+    const idResults = await searchByExternalId(db, query, sourceIds);
+    
+    if (idResults && idResults.length > 0) {
+      // Found results by ID, return them directly
+      results = idResults;
+      total = results.length;
+      searchMethod = "id";
+    } else if (mode === "fulltext") {
       // Full-text search only (BM25-style)
       const searchResults = await buildFullTextQuery(db, query, sourceIds, limit, offset);
       results = searchResults.results;
@@ -143,6 +213,7 @@ export async function POST(request: NextRequest) {
       page,
       pageSize,
       totalPages,
+      ...(searchMethod === "id" && { searchMethod: "id" as const }),
     };
 
     // Add debug info if requested
