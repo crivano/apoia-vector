@@ -274,7 +274,7 @@ export default function SearchPage() {
                       <div className="json-preview mt-3">
                         <pre className="mb-0">
                           {JSON.stringify(
-                            result.item.transformedData || result.item.originalData,
+                            result.item.data,
                             null,
                             2
                           )}
