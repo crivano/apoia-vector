@@ -1,0 +1,37 @@
+image: registry.access.redhat.com/ubi8/buildah:latest
+stages:
+  - release
+
+variables:
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+  LATEST_TAG: $CI_REGISTRY_IMAGE:latest
+  STABLE_TAG: $CI_REGISTRY_IMAGE:stable
+
+release_with_buildah:
+  stage: release
+  before_script:
+    - echo "Setting storage driver to vfs to avoid FUSE issues."
+    - export STORAGE_DRIVER=vfs
+    - echo "Logging in to GitLab Container Registry with Buildah..."
+    - buildah login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - echo "Building image for Git tag $CI_COMMIT_TAG"
+    - buildah bud --pull --no-cache -t "$IMAGE_TAG" -t "$LATEST_TAG" .
+
+    - echo "Pushing images to the registry..."
+    - buildah push --all "$IMAGE_TAG"
+    - buildah push --all "$LATEST_TAG"
+
+    - |
+      if [[ "$CI_COMMIT_TAG" == *stable* ]]; then
+        echo "Tag contains 'stable' -> tagging and pushing :stable"
+        buildah tag "$IMAGE_TAG" "$STABLE_TAG"
+        buildah push "$STABLE_TAG"
+      else
+        echo "Tag does not contain 'stable' -> skipping :stable"
+      fi
+
+    - echo "Buildah successfully pushed images"
+
+  rules:
+    - if: '$CI_COMMIT_TAG'
