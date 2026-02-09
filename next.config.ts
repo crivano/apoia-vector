@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+  
   // Mark Knex and pg as external packages for server-side
   serverExternalPackages: [
     "knex",
