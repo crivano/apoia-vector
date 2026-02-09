@@ -49,12 +49,11 @@ COPY --from=builder /app/public ./public
 
 # Set the correct permission for prerender cache
 RUN mkdir .next
-RUN chown nextjs:nodejs .next
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 # Copia diretórios de migrations (estrutura simples)
 COPY --from=builder /app/src/lib/migrations /app/src/lib/migrations
 # COPY --from=builder /app/migrations/mysql/knex /app/migrations/mysql/knex
