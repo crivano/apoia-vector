@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { generateSlug, isValidSlug } from "@/lib/slug";
+import { corsResponse, corsOptionsHandler } from "@/lib/cors";
+
+// OPTIONS handler for preflight requests
+export async function OPTIONS() {
+  return corsOptionsHandler();
+}
 
 // GET /api/sources - List all sources
 export async function GET() {
@@ -14,10 +20,10 @@ export async function GET() {
     // Transform snake_case to camelCase
     const formattedSources = sources.map(transformSource);
 
-    return NextResponse.json({ sources: formattedSources });
+    return corsResponse({ sources: formattedSources });
   } catch (error) {
     console.error("Error fetching sources:", error);
-    return NextResponse.json(
+    return corsResponse(
       { error: "Failed to fetch sources" },
       { status: 500 }
     );
@@ -35,7 +41,7 @@ export async function POST(request: NextRequest) {
     
     // Validate slug format
     if (!isValidSlug(slug)) {
-      return NextResponse.json(
+      return corsResponse(
         { error: "Invalid slug format. Use lowercase letters, numbers, and hyphens only." },
         { status: 400 }
       );
@@ -80,13 +86,13 @@ export async function POST(request: NextRequest) {
 
     const created = await db("data_sources").where("id", newSource.id).first();
 
-    return NextResponse.json(
+    return corsResponse(
       { source: transformSource(created), message: "Source created successfully" },
       { status: 201 }
     );
   } catch (error) {
     console.error("Error creating source:", error);
-    return NextResponse.json(
+    return corsResponse(
       { error: "Failed to create source" },
       { status: 500 }
     );

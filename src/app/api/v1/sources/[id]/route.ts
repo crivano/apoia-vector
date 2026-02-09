@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { generateSlug, isValidSlug } from "@/lib/slug";
+import { corsResponse, corsOptionsHandler } from "@/lib/cors";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+// OPTIONS handler for preflight requests
+export async function OPTIONS() {
+  return corsOptionsHandler();
 }
 
 // GET /api/sources/[id]
@@ -14,13 +20,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     const source = await db("data_sources").where("id", id).first();
 
     if (!source) {
-      return NextResponse.json({ error: "Source not found" }, { status: 404 });
+      return corsResponse({ error: "Source not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ source: transformSource(source) });
+    return corsResponse({ source: transformSource(source) });
   } catch (error) {
     console.error("Error fetching source:", error);
-    return NextResponse.json(
+    return corsResponse(
       { error: "Failed to fetch source" },
       { status: 500 }
     );
@@ -39,7 +45,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (slug) {
       // Validate slug format
       if (!isValidSlug(slug)) {
-        return NextResponse.json(
+        return corsResponse(
           { error: "Invalid slug format. Use lowercase letters, numbers, and hyphens only." },
           { status: 400 }
         );
@@ -52,7 +58,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         .first();
       
       if (existingSlug) {
-        return NextResponse.json(
+        return corsResponse(
           { error: "Slug already in use by another source" },
           { status: 409 }
         );
@@ -108,13 +114,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const updated = await db("data_sources").where("id", id).first();
 
-    return NextResponse.json({
+    return corsResponse({
       source: transformSource(updated),
       message: "Source updated successfully",
     });
   } catch (error) {
     console.error("Error updating source:", error);
-    return NextResponse.json(
+    return corsResponse(
       { error: "Failed to update source" },
       { status: 500 }
     );
@@ -129,10 +135,10 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
 
     await db("data_sources").where("id", id).delete();
 
-    return NextResponse.json({ message: "Source deleted successfully" });
+    return corsResponse({ message: "Source deleted successfully" });
   } catch (error) {
     console.error("Error deleting source:", error);
-    return NextResponse.json(
+    return corsResponse(
       { error: "Failed to delete source" },
       { status: 500 }
     );

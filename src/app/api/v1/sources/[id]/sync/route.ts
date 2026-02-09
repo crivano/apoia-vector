@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { syncDataSource } from "@/lib/sync";
+import { corsResponse, corsOptionsHandler } from "@/lib/cors";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+// OPTIONS handler for preflight requests
+export async function OPTIONS() {
+  return corsOptionsHandler();
 }
 
 // POST /api/sources/[id]/sync - Trigger sync for a source
@@ -16,7 +22,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     const source = await db("data_sources").where("id", id).first();
 
     if (!source) {
-      return NextResponse.json({ error: "Source not found" }, { status: 404 });
+      return corsResponse({ error: "Source not found" }, { status: 404 });
     }
 
     // Run sync
@@ -40,7 +46,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       item_count: await db("vector_items").where("source_id", id).count("id as count").first().then(r => r?.count || 0),
     });
 
-    return NextResponse.json({
+    return corsResponse({
       message: "Sync completed",
       result,
     });
@@ -54,7 +60,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       last_error: error instanceof Error ? error.message : "Unknown error",
     });
 
-    return NextResponse.json(
+    return corsResponse(
       { error: "Failed to sync source" },
       { status: 500 }
     );

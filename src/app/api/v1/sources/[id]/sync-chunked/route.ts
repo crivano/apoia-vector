@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSyncSession } from "@/lib/sync-queue";
 import getDb from "@/lib/db";
+import { corsResponse, corsOptionsHandler } from "@/lib/cors";
+
+// OPTIONS handler for preflight requests
+export async function OPTIONS() {
+  return corsOptionsHandler();
+}
 
 // Start chunked sync for a specific source
-
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -16,7 +21,7 @@ export async function POST(
     const source = await db("data_sources").where("id", id).first();
 
     if (!source) {
-      return NextResponse.json(
+      return corsResponse(
         { error: "Source not found" },
         { status: 404 }
       );
@@ -67,7 +72,7 @@ export async function POST(
       console.error("Error triggering first chunk:", error);
     });
 
-    return NextResponse.json({
+    return corsResponse({
       message: "Sync started",
       sessionId,
       sourceName: source.name,
@@ -75,7 +80,7 @@ export async function POST(
     });
   } catch (error) {
     console.error("Error starting source sync:", error);
-    return NextResponse.json(
+    return corsResponse(
       { error: "Failed to start sync" },
       { status: 500 }
     );

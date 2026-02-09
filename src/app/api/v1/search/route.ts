@@ -3,6 +3,12 @@ import getDb from "@/lib/db";
 import { generateEmbedding } from "@/lib/embeddings";
 import type { SearchResponse, SearchMode } from "@/types";
 import nunjucks from "nunjucks";
+import { corsResponse, corsOptionsHandler } from "@/lib/cors";
+
+// OPTIONS handler for preflight requests
+export async function OPTIONS() {
+  return corsOptionsHandler();
+}
 
 // Configure nunjucks
 nunjucks.configure({ autoescape: false });
@@ -86,7 +92,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!query || typeof query !== "string") {
-      return NextResponse.json(
+      return corsResponse(
         { error: "Query is required" },
         { status: 400 }
       );
@@ -103,7 +109,7 @@ export async function POST(request: NextRequest) {
       sourceIds = sources.map(s => s.id);
       
       if (sourceIds.length === 0) {
-        return NextResponse.json(
+        return corsResponse(
           { error: "No sources found with the provided slugs" },
           { status: 404 }
         );
@@ -223,10 +229,10 @@ export async function POST(request: NextRequest) {
       (response as unknown as Record<string, unknown>).debugEmbedding = `[${queryEmbedding.slice(0, 5).join(",")}...]`;
     }
 
-    return NextResponse.json(response);
+    return corsResponse(response);
   } catch (error) {
     console.error("Error performing search:", error);
-    return NextResponse.json(
+    return corsResponse(
       { error: "Failed to perform search", details: String(error) },
       { status: 500 }
     );
