@@ -54,9 +54,17 @@ RUN mkdir .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-# Copia diretórios de migrations (estrutura simples)
-COPY --from=builder /app/src/lib/migrations /app/src/lib/migrations
-# COPY --from=builder /app/migrations/mysql/knex /app/migrations/mysql/knex
+
+# Copy migration files and knexfile
+COPY --from=builder /app/src/lib/migrations ./src/lib/migrations
+COPY --from=builder /app/knexfile.ts ./knexfile.ts
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+
+# Copy full node_modules from builder to support migrations
+# The standalone server will use its bundled dependencies,
+# but migrations need the full node_modules to run knex CLI with ts-node
+COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 8080
 
