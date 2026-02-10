@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSyncSession } from "@/lib/sync-queue";
 import getDb from "@/lib/db";
 import { corsResponse, corsOptionsHandler } from "@/lib/cors";
+import { triggerSyncChunk, getSyncChunkUrl } from "@/lib/base-url";
 
 // OPTIONS handler for preflight requests
 export async function OPTIONS() {
@@ -55,28 +56,31 @@ export async function POST(
     // Update session with total chunks
     await db("sync_sessions").where("id", sessionId).update({ total_chunks: 1 });
 
+    console.log(`[sync-chunked] Starting sync for source: ${source.name} (${id})`);
+    console.log(`[sync-chunked] Session ID: ${sessionId}`);
+
     // Trigger first chunk processing
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const authHeader = request.headers.get("authorization") || `Bearer ${process.env.CRON_SECRET || ""}`;
+    const success = await triggerSyncChunk(authHeader);
+    
+    if (!success) {
+      console.error(`[sync-chunked] Failed to trigger sync-chunk for session ${sessionId}`);
+      return corsResponse({
+        message: "Sync started but failed to trigger first chunk",
+        sessionId,
+        sourceName: source.name,
+        chunkUrl: getSyncChunkUrl(),
+        warning: "Check logs for details",
+      }, { status: 207 }); // 207 Multi-Status
+    }
 
-    const chunkUrl = `${baseUrl}/api/v1/cron/sync-chunk`;
-
-    // Fire and forget - don't wait for response
-    fetch(chunkUrl, {
-      method: "GET",
-      headers: {
-        authorization: request.headers.get("authorization") || "",
-      },
-    }).catch((error) => {
-      console.error("Error triggering first chunk:", error);
-    });
+    console.log(`[sync-chunked] Successfully triggered sync-chunk for session ${sessionId}`);
 
     return corsResponse({
       message: "Sync started",
       sessionId,
       sourceName: source.name,
-      chunkUrl,
+      chunkUrl: getSyncChunkUrl(),
     });
   } catch (error) {
     console.error("Error starting source sync:", error);

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { syncDataSource } from "@/lib/sync";
 
-// Vercel Cron Job endpoint
-// Configure in vercel.json:
-// { "crons": [{ "path": "/api/v1/cron/sync", "schedule": "0 */6 * * *" }] }
+// Cron Job endpoint - Simple sync (legacy)
+// For OpenShift/Kubernetes CronJobs
+// Note: Consider using sync-start + sync-chunk for better performance with large datasets
 
 export async function GET(request: NextRequest) {
   // Verify cron secret in production

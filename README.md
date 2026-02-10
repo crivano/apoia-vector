@@ -36,6 +36,8 @@ Edite `.env.local` com suas credenciais:
 ```env
 DATABASE_URL=postgresql://user:pass@host.neon.tech/db?sslmode=require
 OPENAI_API_KEY=sk-your-key
+# Para OpenShift/K8s, adicione também:
+APP_URL=https://sua-app.example.com
 ```
 
 3. Execute as migrations do banco:
@@ -93,15 +95,16 @@ Template de Conteúdo: Tema {{$.numero}}: {{$.titulo}} - {{$.descricao}}
 
 ## 🔄 Sincronização Automática
 
-O projeto já está configurado com Vercel Cron Job em `vercel.json`:
+### OpenShift / Kubernetes
 
-```json
-{
-  "crons": [{
-    "path": "/api/cron/sync",
-    "schedule": "0 */6 * * *"
-  }]
-}
+Para deploy no OpenShift ou Kubernetes, use um CronJob que chama o endpoint HTTP. Veja o arquivo `openshift-cronjob.yaml` e a documentação completa em [OPENSHIFT.md](OPENSHIFT.md).
+
+### Sincronização Manual
+
+Você pode iniciar uma sincronização manualmente pela interface web ou chamando o endpoint:
+
+```bash
+curl -X POST https://sua-app.example.com/api/v1/sources/{id}/sync-chunked
 ```
 
 ## 🏗️ Estrutura do Projeto
@@ -135,13 +138,19 @@ src/
 - **Bootstrap 5** - UI Framework
 - **TypeScript** - Tipagem estática
 
-## 🚀 Deploy na Vercel
+## 🚀 Deploy
 
-1. Conecte o repositório na Vercel
-2. Configure as variáveis de ambiente
-3. Deploy!
+### OpenShift / Kubernetes
 
-A Vercel detectará automaticamente o Next.js e configurará o build.
+1. Siga o guia completo em [OPENSHIFT.md](OPENSHIFT.md)
+2. Configure as variáveis de ambiente necessárias (incluindo `APP_URL`)
+3. Use o CronJob para sincronização automática
+
+### Desenvolvimento Local
+
+```bash
+npm run dev
+```
 
 ## 📄 Licença
 

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSyncSession, initializeSyncQueue } from "@/lib/sync-queue";
+import { triggerSyncChunk, getSyncChunkUrl } from "@/lib/base-url";
 
-// Vercel Cron Job endpoint - Start chunked sync
-// Configure in vercel.json:
-// { "crons": [{ "path": "/api/v1/cron/sync-start", "schedule": "0 6 * * *" }] }
+// Cron Job endpoint - Start chunked sync
+// Designed for OpenShift/Kubernetes CronJobs
+// See openshift-cronjob.yaml for deployment configuration
 
 export async function GET(request: NextRequest) {
   // Verify cron secret in production
@@ -29,28 +30,30 @@ export async function GET(request: NextRequest) {
       });
     }
     
+    console.log("[sync-start] Session created:", sessionId, "with", totalChunks, "chunks");
+    console.log("[sync-start] Triggering first chunk:", getSyncChunkUrl());
+    
     // Trigger first chunk processing
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const success = await triggerSyncChunk(authHeader);
     
-    const chunkUrl = `${baseUrl}/api/v1/cron/sync-chunk`;
+    if (!success) {
+      console.error(`[sync-start] Failed to trigger sync-chunk for session ${sessionId}`);
+      return NextResponse.json({
+        message: "Sync started but failed to trigger first chunk",
+        sessionId,
+        totalChunks,
+        nextUrl: getSyncChunkUrl(),
+        warning: "Check logs and verify APP_URL is set correctly",
+      }, { status: 207 }); // 207 Multi-Status
+    }
     
-    // Fire and forget - don't wait for response
-    fetch(chunkUrl, {
-      method: "GET",
-      headers: {
-        authorization: authHeader || "",
-      },
-    }).catch((error) => {
-      console.error("Error triggering first chunk:", error);
-    });
+    console.log(`[sync-start] Successfully triggered sync-chunk for session ${sessionId}`);
     
     return NextResponse.json({
-      message: "Sync started",
+      message: "Sync started successfully",
       sessionId,
       totalChunks,
-      nextUrl: chunkUrl,
+      nextUrl: getSyncChunkUrl(),
     });
   } catch (error) {
     console.error("Error starting sync:", error);

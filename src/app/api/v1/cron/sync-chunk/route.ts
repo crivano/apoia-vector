@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
+import { triggerSyncChunk, getSyncChunkUrl } from "@/lib/base-url";
 import {
   getNextQueueItem,
   completeQueueItem,
@@ -146,26 +147,18 @@ async function triggerNextChunk(
   authHeader: string | null,
   data?: Record<string, unknown>
 ): Promise<NextResponse> {
-  const baseUrl = process.env.VERCEL_URL 
-    ? `https://${process.env.VERCEL_URL}`
-    : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  console.log("[sync-chunk] Triggering next chunk...");
   
-  const chunkUrl = `${baseUrl}/api/v1/cron/sync-chunk`;
-  
-  // Fire and forget - don't wait for response
-  fetch(chunkUrl, {
-    method: "GET",
-    headers: {
-      authorization: authHeader || "",
-    },
-  }).catch((error) => {
-    console.error("Error triggering next chunk:", error);
-  });
+  // Trigger next chunk - don't wait for full processing
+  // Use setImmediate or setTimeout to avoid blocking
+  setTimeout(async () => {
+    await triggerSyncChunk(authHeader);
+  }, 100); // Small delay to ensure response is sent first
   
   return NextResponse.json({
-    message: "Chunk processed",
+    message: "Chunk processed, next chunk triggered",
     ...data,
-    nextUrl: chunkUrl,
+    nextUrl: getSyncChunkUrl(),
   });
 }
 
