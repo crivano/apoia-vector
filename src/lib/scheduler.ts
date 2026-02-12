@@ -52,12 +52,15 @@ export function stopScheduler() {
   console.log("⏰ Scheduler stopped");
 }
 
-console.log("⏰ Initializing scheduler...");
+console.log("⏰ Scheduler module loaded (use ENABLE_INTERNAL_SCHEDULER=true to enable)");
 
-// Iniciar automaticamente se não estiver em desenvolvimento
-// e se a variável de ambiente ENABLE_INTERNAL_SCHEDULER estiver definida
+// NOTA: Scheduler interno desabilitado por padrão
+// Este projeto agora usa CronJob do OpenShift (ver openshift-cronjob.yaml)
+// Para habilitar o scheduler interno novamente, defina:
+// ENABLE_INTERNAL_SCHEDULER=true
 if (
   process.env.ENABLE_INTERNAL_SCHEDULER === "true"
 ) {
+  console.log("⚠️  Enabling internal scheduler (not recommended with OpenShift CronJob)");
   startScheduler();
 }

@@ -5,7 +5,9 @@
 export async function register() {
   // Apenas no servidor Node.js (não no Edge Runtime)
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    // Importa e inicializa o scheduler
+    // NOTA: O scheduler interno foi substituído por CronJob do OpenShift
+    // Ver: openshift-cronjob.yaml
+    // Para habilitar o scheduler interno, defina: ENABLE_INTERNAL_SCHEDULER=true
     await import("./lib/scheduler");
   }
 }
